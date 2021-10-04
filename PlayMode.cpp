@@ -151,16 +151,14 @@ unsigned int PlayMode::getTexture(unsigned int codepoint, bool* success) {
 }
 
 void PlayMode::createBuf(std::string text) {
-	hb_buffer_t* hb_buffer; //not this
-	hb_buffer = hb_buffer_create(); //not this
-	hb_buffer_add_utf8(hb_buffer, text.c_str(), 1, 0, 1); //not this
-	hb_buffer_guess_segment_properties(hb_buffer); //cant be this
+	hb_buffer = hb_buffer_create();
+	hb_buffer_add_utf8(hb_buffer, text.c_str(), 1, 0, 1);
+	hb_buffer_guess_segment_properties(hb_buffer); 
 	assert(hb_buffer != NULL);
 
 	/* Shape it! */
 	//Issue is either bg_font or hg_buffer, likely hb_font, likely not hb_buffer based an above
 	hb_shape(hb_font, hb_buffer, NULL, 0);
-	while (true);
 
 	/* Get glyph information and positions out of the buffer. */
 	unsigned int len = hb_buffer_get_length(hb_buffer);
@@ -168,11 +166,11 @@ void PlayMode::createBuf(std::string text) {
 	hb_glyph_position_t* pos = hb_buffer_get_glyph_positions(hb_buffer, NULL);  
 
 
-
 	//Load buffer into glyph vector
 	curLine = std::vector<Glyph>(len);
 	for (size_t c = 0; c < len; c++) {
 		Glyph newGlyph;
+		curLine.push_back(newGlyph);
 		bool success = false;
 		if (FT_Load_Char(ft_face, info[c].codepoint, FT_LOAD_RENDER)) {
 			std::runtime_error("Glyph was unable to load");
@@ -197,44 +195,22 @@ void PlayMode::createBuf(std::string text) {
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			newGlyph.textureID = texture;
-			newGlyph.size = glm::ivec2(ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows);
+			curLine[c].textureID = texture;
+			curLine[c].size = glm::ivec2(ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows);
 			TexInfo newInfo;
 			newInfo.codepoint = info[c].codepoint;
 			newInfo.texture = texture;
 			foundGlyph.push_back(newInfo);
 		}
 		else {
-			newGlyph.textureID = texId;
-			newGlyph.size = glm::ivec2(ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows);
+			curLine[c].textureID = texId;
+			curLine[c].size = glm::ivec2(ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows);
 		}
-		newGlyph.bearing.x = (unsigned int)(pos[c].x_offset / 64.f);
-		newGlyph.bearing.y = (unsigned int)(pos[c].y_offset / 64.f);
-		newGlyph.advance = (unsigned int)(pos[c].x_advance / 64.f);
-		curLine.push_back(newGlyph);
+		assert(curLine[c].textureID != 0);
+		curLine[c].bearing.x = (unsigned int)(pos[c].x_offset / 64.f);
+		curLine[c].bearing.y = (unsigned int)(pos[c].y_offset / 64.f);
+		curLine[c].advance = (unsigned int)(pos[c].x_advance / 64.f);
 	}
-	hb_buffer_destroy(hb_buffer);
-}
-
-void PlayMode::setFont(std::string fontfile) {
-
-	/* Initialize FreeType and create FreeType font face. */
-	FT_Library ft_library;
-	FT_Error ft_error;
-
-	if ((ft_error = FT_Init_FreeType(&ft_library)))
-		abort();
-	if ((ft_error = FT_New_Face(ft_library, fontfile.c_str(), 0, &ft_face)))
-		abort();
-	if ((ft_error = FT_Set_Char_Size(ft_face, FONT_SIZE * 64, FONT_SIZE * 64, 0, 0)))
-		abort();
-
-	/* Create hb-ft font. */
-	hb_font = hb_ft_font_create(ft_face, NULL);
-	foundGlyph = std::vector<TexInfo>();
-	
-	FT_Done_FreeType(ft_library);
-
 }
 
 Load< Scene > test_scene(LoadTagDefault, []() -> Scene const * {
@@ -259,16 +235,33 @@ Load< Sound::Sample > dusty_floor_sample(LoadTagDefault, []() -> Sound::Sample c
 });
 
 PlayMode::PlayMode() : scene(*test_scene) {
+
+	hb_font = NULL;
+	hb_buffer = NULL;
+
+	//Set up font
+	std::string fontString = std::string("OpenSans-Regular.ttf");
+
+	if ((ft_error = FT_Init_FreeType(&ft_library)))
+		abort();
+	if ((ft_error = FT_New_Face(ft_library, fontString.c_str(), 0, &ft_face)))
+		abort();
+	if ((ft_error = FT_Set_Char_Size(ft_face, FONT_SIZE * 64, FONT_SIZE * 64, 0, 0)))
+		abort();
+
+	/* Create hb-ft font. */
+	hb_font = hb_ft_font_create(ft_face, NULL);
+	foundGlyph = std::vector<TexInfo>();
+
 	loadDialogue("test.txt");
-	testPrint();
-	//get pointers to leg for convenience:
+	//testPrint();
 	for (auto &transform : scene.transforms) {
-		if (transform.name == "Cube") cube = &transform;
+		//if (transform.name == "Cube") cube = &transform;
 	}
-	if (cube == nullptr) throw std::runtime_error("Cube not found.");
+	//if (cube == nullptr) throw std::runtime_error("Cube not found.");
 
 
-	cube_rotation = cube->rotation;
+	//cube_rotation = cube->rotation;
 
 	//get pointer to camera for convenience:
 	if (scene.cameras.size() != 1) throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
@@ -278,16 +271,21 @@ PlayMode::PlayMode() : scene(*test_scene) {
 	// (note: position will be over-ridden in update())
 	cube_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_cube_position(), 10.0f);
 
-	//Set up font
-	std::string fontString = std::string("OpenSans-Regular.ttf");
-	setFont(fontString);
-	currentLine = std::string("a");
-	createBuf(currentLine);
+	currentText = std::string("a");
+	gameState.chapter = 0;
+	gameState.char0 = 0;
+	gameState.char1 = 0;
+	gameState.currentTrack = 0;
+	gameState.mode = 1;
 }
 
 PlayMode::~PlayMode() {
+	FT_Done_FreeType(ft_library);
 	FT_Done_Face(ft_face);
 	hb_font_destroy(hb_font);
+	hb_buffer_destroy(hb_buffer);
+	hb_buffer = NULL;
+	hb_font = NULL;
 }
 
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
@@ -308,9 +306,32 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			up.downs += 1;
 			up.pressed = true;
 			return true;
-		} else if (evt.key.keysym.sym == SDLK_s) {
+		}
+		else if (evt.key.keysym.sym == SDLK_s) {
 			down.downs += 1;
 			down.pressed = true;
+			return true;
+		}
+		else if (evt.key.keysym.sym == SDLK_x) {
+			enterContradiction = true;
+			return true;
+		}
+		else if (evt.key.keysym.sym == SDLK_1) {
+			gameState.currentTrack = 0;
+			return true;
+		}
+		else if (evt.key.keysym.sym == SDLK_2) {
+			gameState.currentTrack = 1;
+			return true;
+		}
+		else if (evt.key.keysym.sym == SDLK_RIGHT) {
+			continueDialogueRight = true;
+			continueDialogueLeft = false;
+			return true;
+		}
+		else if (evt.key.keysym.sym == SDLK_LEFT) {
+			continueDialogueRight = false;
+			continueDialogueLeft = true;
 			return true;
 		}
 	} else if (evt.type == SDL_KEYUP) {
@@ -350,7 +371,139 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	return false;
 }
 
+void PlayMode::updateDialogue() {
+	if (continueDialogueRight) {
+		continueDialogueRight = false;
+		continueDialogueLeft = false;
+		if (!gameState.currentTrack) {
+			if (gameState.char0 == chapters[gameState.chapter].end.first) {
+				gameState.char0 = 0;
+			}
+			else gameState.char0++;
+		}
+		else {
+			if (gameState.char1 == chapters[gameState.chapter].end.second) {
+				gameState.char1 = 0;
+			}
+			else gameState.char1++;
+		}
+	}
+	else if(continueDialogueLeft) {
+		continueDialogueRight = false;
+		continueDialogueLeft = false;
+		if (!gameState.currentTrack) {
+			if (gameState.char0 == 0) {
+				gameState.char0 = chapters[gameState.chapter].end.first;
+			}
+			else gameState.char0--;
+		}
+		else {
+			if (gameState.char1 == 0) {
+				gameState.char1 = chapters[gameState.chapter].end.second;
+			}
+			else gameState.char1--;
+		}
+	}
+	if (gameState.currentTrack == 0) {
+		currentText = chapters[gameState.chapter].dialogue0[gameState.char0].first;
+		currentSpeaker = chapters[gameState.chapter].dialogue0[gameState.char0].second;
+	}
+	else {
+		currentText = chapters[gameState.chapter].dialogue1[gameState.char1].first;
+		currentSpeaker = chapters[gameState.chapter].dialogue1[gameState.char1].second;
+	}
+}
+
 void PlayMode::update(float elapsed) {
+
+	auto selectChar = [this]() {
+		return !enterContradiction;
+	};
+
+	auto endGame = [this]() {
+		currentText = "The end";
+	};
+
+	auto contradictionCheck = [this]() {
+		if (enterContradiction) {
+			enterContradiction = false;
+			if (chapters[gameState.chapter].contradiction.first == gameState.char0 && chapters[gameState.chapter].contradiction.second == gameState.char1) {
+				return true;
+			}
+			else {
+				std::cout << "Not a contradiction.\n";
+				return false;
+			}
+		}
+		return false;
+	};
+
+	if (gameState.mode == 0) { //mode 0 - auto, 1 - dialogue, 2 - contradiction
+		if (continueDialogueLeft && (gameState.currentTrack == 0 && gameState.char0 == 0) || (gameState.currentTrack == 1 && gameState.char1 == 0)) continueDialogueLeft = false;
+		if(endLine && continueDialogueRight){
+			continueDialogueRight = false;
+			if (chapters.size() - 1 == gameState.chapter) endGame();   //This update needs to be changed
+			else {
+				gameState.mode = 1;
+				gameState.chapter++;
+				gameState.char0 = 0;
+				gameState.char1 = 0;
+			}
+		}
+		else if(!endLine) {
+			if (continueDialogueRight && gameState.currentTrack == 0 && chapters[gameState.chapter].end.first == gameState.char0 ||
+				gameState.currentTrack == 1 && chapters[gameState.chapter].end.second == gameState.char1) {
+				continueDialogueRight = false;
+				endLine = true;
+			}
+			updateDialogue();
+		}	
+	}
+	else if (gameState.mode == 1) {
+		if (selectChar()) {
+			updateDialogue();
+		}
+		else {
+			if (contradictionCheck()) {
+				gameState.mode = 2;
+				gameState.chapter++;
+				gameState.char0 = 0;
+				gameState.char1 = 0;
+			}
+		}
+	}
+	else {
+		if (continueDialogueLeft && (gameState.currentTrack == 0 && gameState.char0 == 0) || (gameState.currentTrack == 1 && gameState.char1 == 0)) continueDialogueLeft = false;
+		if (endLine && continueDialogueRight) {
+			continueDialogueRight = false;
+			endLine = false;
+			gameState.chapter++;
+			gameState.char0 = 0;
+			gameState.char1 = 0;
+			if (chapters.size() - 1 != gameState.chapter) gameState.mode = 1;
+			else gameState.mode = 0;
+		}
+		else{
+			if (continueDialogueRight && gameState.currentTrack == 0 && chapters[gameState.chapter].end.first == gameState.char0 ||
+				gameState.currentTrack == 1 && chapters[gameState.chapter].end.second == gameState.char1) {
+				continueDialogueRight = false;
+				endLine = true;
+			}
+		}
+		updateDialogue();
+	}
+
+	if (gameState.currentTrack == 0) {
+		if (currentSpeaker == 0) std::cout << "You: ";
+		else std::cout << "Char 1: ";
+	}
+	else {
+		if (currentSpeaker == 0) std::cout << "You: ";
+		else std::cout << "Char 2: ";
+	}
+
+	std::cout << currentText << std::endl;
+	continueDialogueRight = false;
 
 	//move sound to follow leg tip position:
 	cube_loop->set_position(get_cube_position(), 1.0f / 60.0f);
@@ -411,6 +564,8 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glDepthFunc(GL_LESS); //this is the default depth comparison function, but FYI you can change it.
 
 	scene.draw(*camera);
+	displayText();
+	GL_ERRORS();
 
 
 	{ //use DrawLines to overlay some text:
@@ -435,6 +590,106 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 			glm::u8vec4(0xff, 0xff, 0xff, 0x00));
 	}
 	GL_ERRORS();
+}
+
+
+void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/Text-Rendering
+	
+	
+	
+
+	//Create glyphs
+	createBuf(currentText);
+	Glyph testGlyph = curLine[0];
+
+	//Set variables
+	float x = 0.0f;
+	float y = 0.0f;
+	float scale = 100.0f;
+	glm::vec3 color = glm::vec3(0.0f,1.0f,1.0f);
+
+	GLuint VAO, VBO;
+	glGenBuffers(1, &VBO);
+
+
+	struct Vertex {
+		glm::vec4 Position;
+		glm::vec3 Normal;
+		glm::vec4 Color;
+		glm::vec2 TexCoord;
+	};
+
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 13, NULL, GL_DYNAMIC_DRAW);
+	GLint location = glGetAttribLocation(lit_color_texture_program->program, "Position");
+	glEnableVertexAttribArray(location);
+	glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, 13 * sizeof(float), (void*)0);
+	location = glGetAttribLocation(lit_color_texture_program->program, "Normal");
+	glEnableVertexAttribArray(location);
+	glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE, 13 * sizeof(float), (void*)(4 * sizeof(float)));
+	location = glGetAttribLocation(lit_color_texture_program->program, "Color");
+	glEnableVertexAttribArray(location);
+	glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, 13 * sizeof(float), (void*)(7 * sizeof(float)));
+	location = glGetAttribLocation(lit_color_texture_program->program, "TexCoord");
+	glEnableVertexAttribArray(location);
+	glVertexAttribPointer(location, 2, GL_FLOAT, GL_FALSE, 13 * sizeof(float), (void*)(11 * sizeof(float)));
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+	GL_ERRORS();
+
+
+
+	//Should be generealized to its own function later
+
+
+	//Create plane mesh
+	float xPos = x + testGlyph.bearing.x * scale;
+	float yPos = y + (testGlyph.size.y - testGlyph.bearing.y) * scale;
+	float width = testGlyph.size.x * scale;
+	float height = testGlyph.size.y * scale;
+	Vertex vertices[6];
+
+	vertices[0].Position = glm::vec4(xPos, yPos + height, 0.0f,1.0f);
+	vertices[1].Position = glm::vec4(xPos, yPos, 0.0f, 1.0f);
+	vertices[2].Position = glm::vec4(xPos + width, yPos, 0.0f, 1.0f);
+	vertices[3].Position = glm::vec4(xPos, yPos + height + height, 0.0f, 1.0f);
+	vertices[4].Position = glm::vec4(xPos + width, yPos, 0.0f, 1.0f);
+	vertices[5].Position = glm::vec4(xPos + width, yPos + height, 0.0f, 1.0f);
+	for (size_t c = 0; c < 6; c++) {
+		vertices[c].Normal = glm::vec3(0.0f, 0.0f, 1.0f);
+		vertices[c].Color = glm::vec4(0,1.0f,1.0f,1.0f);
+	}
+	vertices[0].TexCoord = glm::vec2(0.0f, 0.0f);
+	vertices[1].TexCoord = glm::vec2(0.0f, 1.0f);
+	vertices[2].TexCoord = glm::vec2(1.0f, 1.0f);
+	vertices[3].TexCoord = glm::vec2(0.0f, 0.0f);
+	vertices[4].TexCoord = glm::vec2(1.0f, 1.0f);
+	vertices[5].TexCoord = glm::vec2(1.0f, 0.0f);
+
+
+	//upload vertices to vertex_buffer:
+
+	glUseProgram(lit_color_texture_program->program);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, testGlyph.textureID);
+	glUniform1i(glGetUniformLocation(lit_color_texture_program->program, "TEX"), 0);
+	GL_ERRORS();
+
+	glBindBuffer(GL_ARRAY_BUFFER, VBO); //set vertex_buffer as current
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); //upload vertices array
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	GL_ERRORS();
+
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	GL_ERRORS();
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindVertexArray(0);
+	glUseProgram(0);
+	GL_ERRORS();
+
 }
 
 glm::vec3 PlayMode::get_cube_position() {

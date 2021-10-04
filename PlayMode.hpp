@@ -68,7 +68,8 @@ struct PlayMode : Mode {
 	Scene::Camera *camera = nullptr;
 
 	//Text info
-	std::string currentLine;
+	std::string currentText;
+	int currentSpeaker = 0;
 	FT_Face ft_face;
 	hb_font_t* hb_font;
 	std::vector<Glyph> curLine;
@@ -76,15 +77,25 @@ struct PlayMode : Mode {
 	unsigned int getTexture(unsigned int codepoint,bool *success);
 	void createBuf(std::string text);
 	void setFont(std::string fontfile);
+	FT_Library ft_library;
+	FT_Error ft_error;
+	hb_buffer_t* hb_buffer;
 
 	//To do
 	void displayText();
-	void getCurrentLine();
+	void getCurrentText();
 
 	//Game State
-	struct gameState {
-		unsigned int currentTrack, char0, char1, chapter;
+	struct GameState {
+		unsigned int currentTrack, char0, char1, chapter, mode;
+		//mode 0 - auto, 1 - dialogue, 2 - contradiction
 	};
+	GameState gameState;
+	bool continueDialogueRight = false;
+	bool continueDialogueLeft = false;
+	void updateDialogue();
+	bool enterContradiction = false;
+	bool endLine = false;
 
 	//Dialogue
 	struct Chapter {

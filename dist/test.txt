@@ -20,3 +20,11 @@ END 1 Sure should be
 START 1 This is the second character
 1 1 Bob here, what a long chapter
 END 0 Dammit Bob
+CHAPTER
+1 1
+START 0 This is just a text chapter
+1 0 It should be very short
+END 1 Sure should be
+START 1 This is the second character
+1 1 Bob here, what a long chapter
+END 0 Dammit Bob

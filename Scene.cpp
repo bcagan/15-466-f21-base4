@@ -6,6 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <fstream>
+#include <cstdio>
 
 //-------------------------
 
@@ -101,6 +102,12 @@ void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_lig
 		//skip any drawables that don't contain any vertices:
 		if (pipeline.count == 0) continue;
 
+		if (drawable.text) {
+			glUniform1i(glGetUniformLocation(pipeline.program, "TEXT_BOOL"), 1);
+			glUniform3fv(glGetUniformLocation(pipeline.program, "TEXT_COLOR"), 1, glm::value_ptr(drawable.textColor));
+		}
+		else glUniform1i(glGetUniformLocation(pipeline.program, "TEXT_BOOL"), 0);
+
 
 		//Set shader program:
 		glUseProgram(pipeline.program);
@@ -144,6 +151,8 @@ void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_lig
 				glBindTexture(pipeline.textures[i].target, pipeline.textures[i].texture);
 			}
 		}
+		std::cout << "in scene" << pipeline.textures[0].texture << std::endl;
+		glUniform1i(glGetUniformLocation(pipeline.program, "TEX"), 0);
 
 		//draw the object:
 		glDrawArrays(pipeline.type, pipeline.start, pipeline.count);

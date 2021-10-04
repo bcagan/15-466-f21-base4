@@ -54,6 +54,9 @@ struct Scene {
 		Drawable(Transform *transform_) : transform(transform_) { assert(transform); }
 		Transform * transform;
 
+		bool text = false;
+		glm::vec3 textColor = glm::vec3(1.0f);
+
 		//Contains all the data needed to run the OpenGL pipeline:
 		struct Pipeline {
 			GLuint program = 0; //shader program; passed to glUseProgram
