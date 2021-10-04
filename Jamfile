@@ -14,9 +14,11 @@ if $(OS) = NT { #Windows
 		/I"$(NEST_LIBS)/libogg/include"
 		/I"$(NEST_LIBS)/harfbuzz/include"
 		/I"$(NEST_LIBS)/freetype/include"
+		#/fsanitize=address
 		#disable a few warnings:
 		/wd4146 #-1U is still unsigned
 		/wd4297 #unforunately SDLmain is nothrow
+		
 	;
 	LINKFLAGS = /nologo /SUBSYSTEM:CONSOLE /DEBUG:FASTLINK
 		/LIBPATH:"$(NEST_LIBS)/SDL2/lib"

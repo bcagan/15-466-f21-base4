@@ -1,0 +1,22 @@
+CHAPTER
+8 0
+START 0 And so on a rainy day, I came upon this small tarvern
+1 1 Hello how has your day been
+2 0 Rainy
+3 1 True that, how 'bout a drink
+4 0 Sadly, I'm good. I'm here for business.
+5 0 Ever hear of a guy named "Bob"?
+6 1 Yes, most people have, thats a very common name.
+7 0 Cut it with the sass. In this bar.
+END 1 Nope
+START 1 Hi my name is Bob
+1 0 Cool cool you are under arrest
+END 1 Noooooooooo
+CHAPTER
+1 1
+START 0 This is just a text chapter
+1 0 It should be very short
+END 1 Sure should be
+START 1 This is the second character
+1 1 Bob here, what a long chapter
+END 0 Dammit Bob

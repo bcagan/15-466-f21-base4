@@ -8,6 +8,33 @@
 #include <vector>
 #include <deque>
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <hb.h>
+#include <hb-ft.h>
+#include <string>
+
+#define FONT_SIZE 36 //HarfBuzz implementation based on 
+//https://github.com/harfbuzz/harfbuzz-tutorial/blob/master/hello-harfbuzz-freetype.c
+
+struct Glyph {
+	unsigned int textureID;  
+	glm::ivec2   size;       // (width, height) of glyph
+	glm::ivec2   bearing;    // baseline to (left,top) offset
+	unsigned int advance;    // Offset to advance to next glyph
+}; //Glyphs will be mapped to the above after being created in the face
+//From their, the buffer of glyphs will be turne dinto a buffer of above references
+//Textuere will be generated one at a time
+
+//https://learnopengl.com/In-Practice/Text-Rendering was used to build
+//the above data type
+
+struct TexInfo {
+	unsigned int texture;
+	unsigned int codepoint;
+};
+
 struct PlayMode : Mode {
 	PlayMode();
 	virtual ~PlayMode();
@@ -29,20 +56,47 @@ struct PlayMode : Mode {
 	Scene scene;
 
 	//hexapod leg to wobble:
-	Scene::Transform *hip = nullptr;
-	Scene::Transform *upper_leg = nullptr;
-	Scene::Transform *lower_leg = nullptr;
-	glm::quat hip_base_rotation;
-	glm::quat upper_leg_base_rotation;
-	glm::quat lower_leg_base_rotation;
-	float wobble = 0.0f;
+	Scene::Transform *cube = nullptr;
+	glm::quat cube_rotation;
 
-	glm::vec3 get_leg_tip_position();
+	glm::vec3 get_cube_position();
 
 	//music coming from the tip of the leg (as a demonstration):
-	std::shared_ptr< Sound::PlayingSample > leg_tip_loop;
+	std::shared_ptr< Sound::PlayingSample > cube_loop;
 	
 	//camera:
 	Scene::Camera *camera = nullptr;
+
+	//Text info
+	std::string currentLine;
+	FT_Face ft_face;
+	hb_font_t* hb_font;
+	std::vector<Glyph> curLine;
+	std::vector<TexInfo> foundGlyph;
+	unsigned int getTexture(unsigned int codepoint,bool *success);
+	void createBuf(std::string text);
+	void setFont(std::string fontfile);
+
+	//To do
+	void displayText();
+	void getCurrentLine();
+
+	//Game State
+	struct gameState {
+		unsigned int currentTrack, char0, char1, chapter;
+	};
+
+	//Dialogue
+	struct Chapter {
+		std::pair<unsigned int, unsigned int> contradiction;
+		std::pair<unsigned int, unsigned int> end;
+		std::vector<std::pair<std::string,uint8_t>> dialogue0;
+		std::vector<std::pair<std::string,uint8_t>> dialogue1;
+	};
+
+	std::vector<Chapter> chapters;
+
+	void loadDialogue(std::string fileName);
+	void testPrint();
 
 };

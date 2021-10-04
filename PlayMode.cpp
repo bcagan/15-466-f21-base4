@@ -1,3 +1,5 @@
+#define  _CRT_SECURE_NO_WARNINGS
+
 #include "PlayMode.hpp"
 
 #include "LitColorTextureProgram.hpp"
@@ -11,24 +13,240 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <random>
+#include<vector>
+#include <iostream>
+#include<fstream>
+#include <stdlib.h>
+#include <assert.h>
 
-GLuint hexapod_meshes_for_lit_color_texture_program = 0;
-Load< MeshBuffer > hexapod_meshes(LoadTagDefault, []() -> MeshBuffer const * {
-	MeshBuffer const *ret = new MeshBuffer(data_path("hexapod.pnct"));
-	hexapod_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
+GLuint test_meshes_for_lit_color_texture_program = 0;
+Load< MeshBuffer > test_meshes(LoadTagDefault, []() -> MeshBuffer const * {
+	MeshBuffer const *ret = new MeshBuffer(data_path("test.pnct"));
+	test_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
 	return ret;
 });
 
-Load< Scene > hexapod_scene(LoadTagDefault, []() -> Scene const * {
-	return new Scene(data_path("hexapod.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
-		Mesh const &mesh = hexapod_meshes->lookup(mesh_name);
+void PlayMode::testPrint() {
+	for (size_t c = 0; c < chapters.size(); c++) {
+		Chapter chap = chapters[c];
+		std::pair<unsigned int, unsigned int> thisCont = chap.contradiction;
+		std::pair<unsigned int, unsigned int> thisEnd = chap.end;
+		std::vector<std::pair<std::string, uint8_t>> dialogue0 = chap.dialogue0;
+		std::vector<std::pair<std::string, uint8_t>> dialogue1 = chap.dialogue1;
+		std::cout << "CHAPTER: \n";
+		for (size_t dio = 0; dio < dialogue0.size(); dio++) {
+			if (dio == thisCont.first) std::cout << " This is a contradiction: ";
+			std::cout << dio << ": ";
+			if (dialogue0[dio].second == 0) std::cout << "You: ";
+			else std::cout << "Barkeep: ";
+			std::cout << dialogue0[dio].first;
+			std::cout << std::endl;
+		}
+		std::cout << "At line " << thisEnd.first << std::endl;
+		for (size_t dio = 0; dio < dialogue1.size(); dio++) {
+			if (dio == thisCont.second) std::cout << " This is a contradiction: ";
+			std::cout << dio << ": ";
+			if (dialogue1[dio].second == 0) std::cout << "You: ";
+			else std::cout << "Bob: ";
+			std::cout << dialogue1[dio].first;
+			std::cout << std::endl;
+		}
+		std::cout << "At line " << thisEnd.second << std::endl;
+	}
+}
+
+void PlayMode::loadDialogue(std::string fileName) {
+	//To be added: Chapter WIN
+	std::string properPath = data_path(fileName);
+	chapters = std::vector<Chapter>();
+	std::ifstream tempStream;
+	tempStream.open(fileName, std::ios::in | std::ios::binary);
+	if (tempStream.is_open()) {
+		//State params (used to check formatting for errors)
+		bool character = false;
+		bool ended = true;
+		bool chapter = false;
+		bool readLines = false;
+		char line[999];
+
+		std::vector<std::pair<std::string, uint8_t>> dialogue;
+		Chapter curChapter;
+
+		while (tempStream.getline(line,999)) { 
+
+			std::string inString = std::string(line);
+
+			//Tokenizer based on https://www.geeksforgeeks.org/tokenizing-a-string-cpp/
+			std::vector < std::string> tokens = std::vector<std::string>();
+			char* temp = std::strtok(line, " ");
+			while (temp != NULL) {
+				tokens.push_back(std::string(temp));
+				temp = std::strtok(NULL, " ");
+			}
+			bool linePick = false;
+			if (readLines && !linePick) {
+				linePick = true;
+				if (tokens.size() < 3) std::runtime_error("Bad file format: Line dialogue missing information");
+				unsigned int lineType = std::stoi(tokens[1]);
+				size_t preamble = 2 + tokens[0].size() + tokens[1].size();
+				std::string useLine = inString.substr(preamble, useLine.size() - preamble);
+				std::pair<std::string, uint8_t> newLine;
+				newLine.first = useLine;
+				newLine.second = ((uint8_t)lineType);
+				dialogue.push_back(newLine);
+				if (tokens[0] == std::string("END")) {
+					if (character) {
+						curChapter.dialogue1 = dialogue;
+						curChapter.end.second = (unsigned int)dialogue.size() - 1;
+						chapters.push_back(curChapter);
+						dialogue = std::vector<std::pair<std::string, uint8_t>>();
+						Chapter nextChapter;
+						curChapter = nextChapter;
+						assert(curChapter.dialogue0 != chapters[0].dialogue0);
+						ended = true;
+						readLines = false;
+					}
+					else {
+						curChapter.dialogue0 = dialogue;
+						curChapter.end.first = (unsigned int)dialogue.size() - 1;
+						dialogue = std::vector<std::pair<std::string, uint8_t>>();
+						character = true;
+						ended = false;
+					}
+				}
+				else ended = false;
+			}
+			if (chapter && !linePick) {
+				linePick = true;
+				chapter = false;
+				readLines = true;
+				character = false;
+				std::vector<std::pair<std::string, uint8_t>> dialogue = std::vector<std::pair<std::string, uint8_t>>();
+				if (tokens.size() != 2) std::runtime_error("Bad file format: Misformatted contadictions line");
+				curChapter.contradiction.first = std::stoi(tokens[0]);
+				curChapter.contradiction.second = std::stoi(tokens[1]);
+			}
+			if (ended && !linePick) {
+				linePick = true;
+				if (strlen(line) < 6 || inString.substr(0, 6) != std::string("CHAPTER"))
+					std::runtime_error("Bad file format: CHAPTER doesn't begin a chapter");
+				ended = false;
+				chapter = true;
+			}
+		}
+		tempStream.close();
+	}
+	else std::runtime_error("Error opening data file");
+}
+
+unsigned int PlayMode::getTexture(unsigned int codepoint, bool* success) {
+	for (auto whichTexture : foundGlyph) {
+		if (whichTexture.codepoint == codepoint) {
+			*success = true;
+			return whichTexture.texture;
+		}
+	}
+	*success = false;
+	return 0;
+}
+
+void PlayMode::createBuf(std::string text) {
+	hb_buffer_t* hb_buffer; //not this
+	hb_buffer = hb_buffer_create(); //not this
+	hb_buffer_add_utf8(hb_buffer, text.c_str(), 1, 0, 1); //not this
+	hb_buffer_guess_segment_properties(hb_buffer); //cant be this
+	assert(hb_buffer != NULL);
+
+	/* Shape it! */
+	//Issue is either bg_font or hg_buffer, likely hb_font, likely not hb_buffer based an above
+	hb_shape(hb_font, hb_buffer, NULL, 0);
+	while (true);
+
+	/* Get glyph information and positions out of the buffer. */
+	unsigned int len = hb_buffer_get_length(hb_buffer);
+	hb_glyph_info_t* info = hb_buffer_get_glyph_infos(hb_buffer, NULL);
+	hb_glyph_position_t* pos = hb_buffer_get_glyph_positions(hb_buffer, NULL);  
+
+
+
+	//Load buffer into glyph vector
+	curLine = std::vector<Glyph>(len);
+	for (size_t c = 0; c < len; c++) {
+		Glyph newGlyph;
+		bool success = false;
+		if (FT_Load_Char(ft_face, info[c].codepoint, FT_LOAD_RENDER)) {
+			std::runtime_error("Glyph was unable to load");
+		}
+		unsigned int texId = getTexture(info[c].codepoint, &success);
+		if (!success) {
+			unsigned int texture;
+			glGenTextures(1, &texture);
+			glBindTexture(GL_TEXTURE_2D, texture);
+			glTexImage2D(
+				GL_TEXTURE_2D,
+				0,
+				GL_RED,
+				ft_face->glyph->bitmap.width,
+				ft_face->glyph->bitmap.rows,
+				0,
+				GL_RED,
+				GL_UNSIGNED_BYTE,
+				ft_face->glyph->bitmap.buffer
+			);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			newGlyph.textureID = texture;
+			newGlyph.size = glm::ivec2(ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows);
+			TexInfo newInfo;
+			newInfo.codepoint = info[c].codepoint;
+			newInfo.texture = texture;
+			foundGlyph.push_back(newInfo);
+		}
+		else {
+			newGlyph.textureID = texId;
+			newGlyph.size = glm::ivec2(ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows);
+		}
+		newGlyph.bearing.x = (unsigned int)(pos[c].x_offset / 64.f);
+		newGlyph.bearing.y = (unsigned int)(pos[c].y_offset / 64.f);
+		newGlyph.advance = (unsigned int)(pos[c].x_advance / 64.f);
+		curLine.push_back(newGlyph);
+	}
+	hb_buffer_destroy(hb_buffer);
+}
+
+void PlayMode::setFont(std::string fontfile) {
+
+	/* Initialize FreeType and create FreeType font face. */
+	FT_Library ft_library;
+	FT_Error ft_error;
+
+	if ((ft_error = FT_Init_FreeType(&ft_library)))
+		abort();
+	if ((ft_error = FT_New_Face(ft_library, fontfile.c_str(), 0, &ft_face)))
+		abort();
+	if ((ft_error = FT_Set_Char_Size(ft_face, FONT_SIZE * 64, FONT_SIZE * 64, 0, 0)))
+		abort();
+
+	/* Create hb-ft font. */
+	hb_font = hb_ft_font_create(ft_face, NULL);
+	foundGlyph = std::vector<TexInfo>();
+	
+	FT_Done_FreeType(ft_library);
+
+}
+
+Load< Scene > test_scene(LoadTagDefault, []() -> Scene const * {
+	return new Scene(data_path("test.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
+		Mesh const &mesh = test_meshes->lookup(mesh_name);
 
 		scene.drawables.emplace_back(transform);
 		Scene::Drawable &drawable = scene.drawables.back();
 
 		drawable.pipeline = lit_color_texture_program_pipeline;
 
-		drawable.pipeline.vao = hexapod_meshes_for_lit_color_texture_program;
+		drawable.pipeline.vao = test_meshes_for_lit_color_texture_program;
 		drawable.pipeline.type = mesh.type;
 		drawable.pipeline.start = mesh.start;
 		drawable.pipeline.count = mesh.count;
@@ -40,20 +258,17 @@ Load< Sound::Sample > dusty_floor_sample(LoadTagDefault, []() -> Sound::Sample c
 	return new Sound::Sample(data_path("dusty-floor.opus"));
 });
 
-PlayMode::PlayMode() : scene(*hexapod_scene) {
+PlayMode::PlayMode() : scene(*test_scene) {
+	loadDialogue("test.txt");
+	testPrint();
 	//get pointers to leg for convenience:
 	for (auto &transform : scene.transforms) {
-		if (transform.name == "Hip.FL") hip = &transform;
-		else if (transform.name == "UpperLeg.FL") upper_leg = &transform;
-		else if (transform.name == "LowerLeg.FL") lower_leg = &transform;
+		if (transform.name == "Cube") cube = &transform;
 	}
-	if (hip == nullptr) throw std::runtime_error("Hip not found.");
-	if (upper_leg == nullptr) throw std::runtime_error("Upper leg not found.");
-	if (lower_leg == nullptr) throw std::runtime_error("Lower leg not found.");
+	if (cube == nullptr) throw std::runtime_error("Cube not found.");
 
-	hip_base_rotation = hip->rotation;
-	upper_leg_base_rotation = upper_leg->rotation;
-	lower_leg_base_rotation = lower_leg->rotation;
+
+	cube_rotation = cube->rotation;
 
 	//get pointer to camera for convenience:
 	if (scene.cameras.size() != 1) throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
@@ -61,10 +276,18 @@ PlayMode::PlayMode() : scene(*hexapod_scene) {
 
 	//start music loop playing:
 	// (note: position will be over-ridden in update())
-	leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_leg_tip_position(), 10.0f);
+	cube_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_cube_position(), 10.0f);
+
+	//Set up font
+	std::string fontString = std::string("OpenSans-Regular.ttf");
+	setFont(fontString);
+	currentLine = std::string("a");
+	createBuf(currentLine);
 }
 
 PlayMode::~PlayMode() {
+	FT_Done_Face(ft_face);
+	hb_font_destroy(hb_font);
 }
 
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
@@ -129,25 +352,8 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 
 void PlayMode::update(float elapsed) {
 
-	//slowly rotates through [0,1):
-	wobble += elapsed / 10.0f;
-	wobble -= std::floor(wobble);
-
-	hip->rotation = hip_base_rotation * glm::angleAxis(
-		glm::radians(5.0f * std::sin(wobble * 2.0f * float(M_PI))),
-		glm::vec3(0.0f, 1.0f, 0.0f)
-	);
-	upper_leg->rotation = upper_leg_base_rotation * glm::angleAxis(
-		glm::radians(7.0f * std::sin(wobble * 2.0f * 2.0f * float(M_PI))),
-		glm::vec3(0.0f, 0.0f, 1.0f)
-	);
-	lower_leg->rotation = lower_leg_base_rotation * glm::angleAxis(
-		glm::radians(10.0f * std::sin(wobble * 3.0f * 2.0f * float(M_PI))),
-		glm::vec3(0.0f, 0.0f, 1.0f)
-	);
-
 	//move sound to follow leg tip position:
-	leg_tip_loop->set_position(get_leg_tip_position(), 1.0f / 60.0f);
+	cube_loop->set_position(get_cube_position(), 1.0f / 60.0f);
 
 	//move camera:
 	{
@@ -206,6 +412,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	scene.draw(*camera);
 
+
 	{ //use DrawLines to overlay some text:
 		glDisable(GL_DEPTH_TEST);
 		float aspect = float(drawable_size.x) / float(drawable_size.y);
@@ -230,7 +437,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	GL_ERRORS();
 }
 
-glm::vec3 PlayMode::get_leg_tip_position() {
+glm::vec3 PlayMode::get_cube_position() {
 	//the vertex position here was read from the model in blender:
-	return lower_leg->make_local_to_world() * glm::vec4(-1.26137f, -11.861f, 0.0f, 1.0f);
+	return glm::vec3(1.0f);
 }
