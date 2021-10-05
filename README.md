@@ -16,7 +16,15 @@ Screen Shot:
 
 How To Play:
 
-(TODO: describe the controls and (if needed) goals/strategy.)
+Press the left arrow to go back to a previous line, and the right arrow to go to the next. Note, text
+will cycle from the last to first and vice-versa, but only during "investigation" portions.
+Press 1 and 2 to swap to the first and second (left and right) witness respectively.
+Press x to claim if the current line in the first and second individual's dialogue is a 
+contradiction. If it is, the text will flash green, if not, it will flash red.
+You can also move around the world freely with WASD, and move the mouse to control the camera.
+Press escape to unlock the mouse cursor if need be.
+Note that following a contradiciton, there will be a segment of exposition, to continue read through
+all the dialouge of either individual. This is also the case for the prologue and epilogue.
 
 Sources: Code references: https://learnopengl.com/In-Practice/Text-Rendering
 https://www.geeksforgeeks.org/tokenizing-a-string-cpp/
