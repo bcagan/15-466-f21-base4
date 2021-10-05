@@ -493,16 +493,16 @@ void PlayMode::update(float elapsed) {
 		updateDialogue();
 	}
 
-	if (gameState.currentTrack == 0) {
-		if (currentSpeaker == 0) std::cout << "You: ";
-		else std::cout << "Char 1: ";
-	}
-	else {
-		if (currentSpeaker == 0) std::cout << "You: ";
-		else std::cout << "Char 2: ";
-	}
+//	if (gameState.currentTrack == 0) {
+//		if (currentSpeaker == 0) std::cout << "You: ";
+//		else std::cout << "Char 1: ";
+//	}
+//	else {
+//		if (currentSpeaker == 0) std::cout << "You: ";
+//		else std::cout << "Char 2: ";
+//	}
 
-	std::cout << currentText << std::endl;
+//	std::cout << currentText << std::endl;
 	continueDialogueRight = false;
 
 	//move sound to follow leg tip position:
@@ -563,8 +563,13 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS); //this is the default depth comparison function, but FYI you can change it.
 
+
+
 	scene.draw(*camera);
 	displayText();
+
+
+
 	GL_ERRORS();
 
 
@@ -605,7 +610,7 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 	//Set variables
 	float x = 0.0f;
 	float y = 0.0f;
-	float scale = 100.0f;
+	float scale = 1.0f;
 	glm::vec3 color = glm::vec3(0.0f,1.0f,1.0f);
 
 	GLuint VAO, VBO;
@@ -640,7 +645,6 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 	GL_ERRORS();
 
 
-
 	//Should be generealized to its own function later
 
 
@@ -649,14 +653,15 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 	float yPos = y + (testGlyph.size.y - testGlyph.bearing.y) * scale;
 	float width = testGlyph.size.x * scale;
 	float height = testGlyph.size.y * scale;
+	std::cout << xPos << " x p " << yPos << " y p " << width << " w " << height << " h " << std::endl;
 	Vertex vertices[6];
 
-	vertices[0].Position = glm::vec4(xPos, yPos + height, 0.0f,1.0f);
-	vertices[1].Position = glm::vec4(xPos, yPos, 0.0f, 1.0f);
-	vertices[2].Position = glm::vec4(xPos + width, yPos, 0.0f, 1.0f);
-	vertices[3].Position = glm::vec4(xPos, yPos + height + height, 0.0f, 1.0f);
-	vertices[4].Position = glm::vec4(xPos + width, yPos, 0.0f, 1.0f);
-	vertices[5].Position = glm::vec4(xPos + width, yPos + height, 0.0f, 1.0f);
+	vertices[0].Position = glm::vec4(xPos, yPos + height, -1.0f,1.0f);
+	vertices[1].Position = glm::vec4(xPos, yPos, -1.0f, 1.0f);
+	vertices[2].Position = glm::vec4(xPos + width, yPos, -1.0f, 1.0f);
+	vertices[3].Position = glm::vec4(xPos, yPos + height + height, -1.0f, 1.0f);
+	vertices[4].Position = glm::vec4(xPos + width, yPos, -1.0f, 1.0f);
+	vertices[5].Position = glm::vec4(xPos + width, yPos + height, -1.0f, 1.0f);
 	for (size_t c = 0; c < 6; c++) {
 		vertices[c].Normal = glm::vec3(0.0f, 0.0f, 1.0f);
 		vertices[c].Color = glm::vec4(0,1.0f,1.0f,1.0f);
@@ -669,13 +674,39 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 	vertices[5].TexCoord = glm::vec2(1.0f, 0.0f);
 
 
+	glUseProgram(lit_color_texture_program->program);
+
+	//Vars from scene
+	Scene::Camera camera = scene.cameras.front();
+	assert(camera.transform);
+	glm::mat4 world_to_clip = camera.make_projection() * glm::mat4(camera.transform->make_world_to_local());
+	glm::mat4x3 world_to_light = glm::mat4x3(1.0f);
+	glm::mat4 object_to_clip = world_to_clip;
+	glUniformMatrix4fv(glGetUniformLocation(lit_color_texture_program->program, "OBJECT_TO_CLIP"), 1, GL_FALSE, glm::value_ptr(object_to_clip));
+	GL_ERRORS();
+	glm::mat4x3 object_to_light = world_to_light;
+	GL_ERRORS();
+	glUniformMatrix4x3fv(glGetUniformLocation(lit_color_texture_program->program, "OBJECT_TO_LIGHT"), 1, GL_FALSE, glm::value_ptr(object_to_light));
+	GL_ERRORS();
+	glm::mat3 normal_to_light = glm::inverse(glm::transpose(glm::mat3(object_to_light)));
+	GL_ERRORS();
+	glUniformMatrix3fv(glGetUniformLocation(lit_color_texture_program->program, "NORMAL_TO_LIGHT"), 1, GL_FALSE, glm::value_ptr(normal_to_light));
+	GL_ERRORS();
+
 	//upload vertices to vertex_buffer:
 
-	glUseProgram(lit_color_texture_program->program);
+
+	glUniform1i(glGetUniformLocation(lit_color_texture_program->program, "TEXT_BOOL"), 1);
+	GL_ERRORS();
+	glUniform3fv(glGetUniformLocation(lit_color_texture_program->program, "TEXT_COLOR"), 1, glm::value_ptr(glm::vec3(1.0f)));
+	GL_ERRORS();
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, testGlyph.textureID);
 	glUniform1i(glGetUniformLocation(lit_color_texture_program->program, "TEX"), 0);
 	GL_ERRORS();
+
+	glBindVertexArray(VAO);
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBO); //set vertex_buffer as current
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); //upload vertices array
