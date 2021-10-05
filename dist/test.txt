@@ -1,6 +1,6 @@
 CHAPTER
 8 0
-START 0 And so on a rainy day, I came upon this small tarvern
+START 0 And so on a rainy day, I came upon this small tavern
 1 1 Hello how has your day been
 2 0 Rainy
 3 1 True that, how 'bout a drink

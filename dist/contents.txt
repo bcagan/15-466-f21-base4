@@ -1,0 +1,154 @@
+CHAPTER
+0 0
+START 0 It had been 5 long days since I had proven my innocence. 
+1 0 But, it seemed it wouldn't be that easy to get back to a normal 
+2 0 life. It was around 8AM, I had been walking home from an old aquaintence's. 
+3 0 When I learned that I still hadn't freed myself from that day
+END 1 CHAPTER START
+START 0 It had been 5 long days since I had proven my innocence
+1 0 But, it seemed it wouldn't be that easy to get back to a normal life
+2 0 It was around 8AM, I had been walking home from an old aquaintence's 
+3 0 When I learned that I still hadn't freed myself from that day
+END 1 CHAPTER START
+CHAPTER
+10 6
+START 0 You: What is that.... a dead body? I shouldn't but... I should
+1 0 You: see if anyone needs help.
+2 0 You: Hey, do you know what happened here
+3 1 Young Man: I have no idea, when I got here this person was
+4 1 Young Man: already dead.
+5 0 You: What were you doing before then?
+6 1 Young Man: What does that matter to you?
+7 0 You: I've been through this before. I want to be careful.
+8 1 Young Man: Walking home from work, I was the last one to leave
+9 0 You: And I assume nothing was special about today?
+10 1 Young Man: Nope. I walked home alone, same as I always do.
+END 0 You: Hmmm. Thank you, I guess I should talk to that other person.
+START 0 You: Hello, mind if I ask you some questions?
+1 1 Mysterious Woman: Fine.
+2 0 You: Any idea what happened here?
+3 1 Mysterious Woman: As much as you.
+4 0 You: *Well, this isn't going to get very far*
+5 0 You: Was anyone here when you arrived?
+6 1 Mysterious Woman: Nope. Me and that man over there were the only one.
+7 0 You: *I guess that's all I'm going to get here*
+8 0 You: Thank you.
+9 1 Mysterious Woman: I hope that is all.
+END 0 You: *Something doesn't seem quite right here*
+CHAPTER
+0 0
+START 0 You: You claimed you walked home alone the same as usual, correct?
+1 1 Young Man: Y....yes... why?
+2 0 You: Does that mean no one was with you at all until you got here?
+3 1 Young Man: Well of course! I already told you that multiple times!
+4 1 Young Man: ...Sorry, its just... I haven't been in a situation like this
+5 1 Young Man: before, you understand right?
+6 0 You: I'm not sure I do. You see, I talked with the other person over there.
+7 0 You: She seems to claim you arrived here at the same time.
+8 1 Young Man: What? Are you claiming I'm lying. No one else was with me
+END 1 Young Man: When I arrived!
+START 0 You: I have one more question, if I may?
+1 1 Mysterious Woman: Make it quick.
+2 0 You: Are you sure that man over there arrived at the same time as you?
+3 1 Mysterious Woman: No. I never claimed that all.
+4 0 You: You most definitely said " Me and that man over there were the only one."
+END 1 Mysterious Woman: You misheard.
+CHAPTER
+5 2
+START 0 You: Let me ask a different question. I noticed both of you here, but
+1 0 You: why hasn't any one called the authorities yet?
+2 1 Young Man: I swore I had.
+3 0 You: You swore? 
+4 1 Young Man: As I mentioned the shock, I can't quite remember. I swear its
+5 1 Young Man: the first... no wait, I didn't. But the other person, she did. I clearly
+6 1 Young Man: remember. It was just the shock and all.
+END 0 You: *I guess the only way I'm getting anything is by talking to her*
+START 0 You: When you came upon the scene of the crime, what was the first thing you did?
+1 0 You: Did you call anyone for help?
+2 1 Mysterious Woman: Nothing. No need
+3 0 You: I'm sorry?
+4 1 Mysterious Woman: No reason to do it. Won't solve anything.
+5 0 You: I don't follow.
+END 1 Mysterious Woman: You'll understand soon enough.
+CHAPTER
+0 0
+START 0 You: Sorry to question your memory again, but you claim that she
+1 0 You: called for help first thing?
+2 1 Young Man: Even in m...my shock... I'm s...sure of it. *cough cough*
+3 0 You: You don't sound so sure.
+END 1 You: *cough* *cough* I'm positive I saw her do it.
+START 0 You: Your story seems to again not line up with his.
+1 1 Mysterious Woman: I assume he claims I called for help first thing
+2 0 You: Yes... yes actually. Thats exactly what he claimed
+3 1 Mysterious Woman: Look at him. Does he look like hes in the state
+4 1 Mysterious Woman: of someone with a trustworthy memory?
+5 0 You: Well... I...
+END 1 Mysterious Woman: Leave it be.
+CHAPTER
+16 7
+START 0 You: Listen I have one last question
+1 1 Young Man: *cough* *cough*
+2 0 You: Something seems off about the scene here. Do you mind if I ask you
+3 0 You: about it?
+4 1 Young Man: *cough* s...sure
+5 0 You: Do you see the victims arm?
+6 1 Young Man: Y...yeah? What about it?
+7 0 You: Its clearly covered in dried blood. Yet there is none on the ground
+8 0 You: below it.
+9 1 Young Man: S..so?
+10 0 You: There's clearly a pool of blood next to the body. You would
+11 0 You: imagine that the arm had fallen there. Yet its no where close to it.
+12 1 Young Man: And what are you asking me? Leave this stuff to the detectives.
+13 0 You: Well, I was just wondering if you noticed anything strange about the body.
+14 1 Young Man: N..no, the arm was covered in blood the moment I got here. *cough*
+15 0 You: All of it?
+END 1 Young Man: O...of course. The entire arm, hand, shirt, whatever you ask.
+START 1 Mysterious Woman: What do you want?
+1 0 You: I have one more question. About the scene.
+2 1 Mysterious Woman: What, do you think you're the FBI? Whatever, I'm not interested
+3 0 You: I just wanted to ask if you noticed anything werid when you arrived.
+4 1 Mysterious Woman: You mean outside of a dead body? Look, everything was as it is now
+5 1 Mysterious Woman: if you want to know what I saw, look at the scene.
+6 0 You: *Hmmm.... something else is bothering me. The arm is covered in blood
+7 0 You: *but the shirt is entirely clean.*
+END 0 You: *I should ask that man about it again*
+CHAPTER
+0 0
+START 0 You: Listen. I know you are hiding something. You're making it pretty clear.
+1 1 Young Man: *cough* *cough* Why are you doing this? Just leave me *cough* be!
+2 0 You: You're sure the shirt had blood on it.
+3 0 Young Man: Of *cough* course I am.
+4 0 You: Then why are the sleeves dry?
+5 1 Young Man: *cough* *cough*
+6 1 Young Man: *cough* *cough* *cough* *cough*
+7 1 Young Man: *COUGH* *COUGH* *COUGH* *COUGH*
+END 1 Young Man: ....fine... I...I'll tell you
+START 0 You: I noticed something strange. You said that everything
+1 0 You: was the same as when you got here. But the sleeves have no blood on them, even
+2 0 You: though the arm is covered in it. What are you hiding.
+3 1 Mysterious Woman: ....
+4 0 You: ...
+END 0 Mysterious Woman: .... are you sure you want to know?
+CHAPTER
+0 0
+START 1 Young Man: I arrived at the scene with that woman. But, neither of us did it.
+1 0 You: Did you know each other?
+2 1 Young Man: Y...yes...
+3 0 You: Then why did you claim you didn't?
+4 1 Young Man: I wouldn't say we know each other as much as... work together.
+5 0 You: What do you mean by that?
+6 1 Young Man: Let's just say.... we wouldn't want anyone else to know 
+7 1 Young Man: that we were here togehter
+8 0 You: Well that just makes me more suspcious.
+END 1 Young Man: You might want to ask her.
+START 0 Mysterious Woman: We know nothing about what happened here, other than that it did
+1 0 You: So you didn't know about this murder before it happened?
+2 1 Mysterious Woman: Well. I wouldn't say that.
+3 0 You: So why... are you here?
+4 1 Mysterious Woman: Again, I don't know if you want to know. If you knew what was best,
+5 1 Mysterious Woman: you would walk away.
+6 0 You: Did you know this person. Why won't you say what is going on.
+7 1 Mysterious Woman: Listen.... I gave you every chance to leave this and move on.
+8 1 Mysterious Woman: This person is as much as my concern as it is yours.
+9 0 She handed me a jacked, with a bloodstained sleeve, and pulled out an ID from its pocket.
+END 1 Mysterious Woman: This... is the man who framed you for murder.

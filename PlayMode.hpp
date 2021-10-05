@@ -80,6 +80,7 @@ struct PlayMode : Mode {
 	FT_Library ft_library;
 	FT_Error ft_error;
 	hb_buffer_t* hb_buffer;
+	unsigned int len = 0;
 
 	//To do
 	void displayText();
@@ -87,7 +88,7 @@ struct PlayMode : Mode {
 
 	//Game State
 	struct GameState {
-		unsigned int currentTrack, char0, char1, chapter, mode;
+		unsigned int currentTrack, char0, char1, chapter, mode = 0;
 		//mode 0 - auto, 1 - dialogue, 2 - contradiction
 	};
 	GameState gameState;
@@ -95,7 +96,8 @@ struct PlayMode : Mode {
 	bool continueDialogueLeft = false;
 	void updateDialogue();
 	bool enterContradiction = false;
-	bool endLine = false;
+	glm::vec3 textColor = glm::vec3(1.0f);
+	float colorStatus = 1.0f; //0 color, 1 white
 
 	//Dialogue
 	struct Chapter {

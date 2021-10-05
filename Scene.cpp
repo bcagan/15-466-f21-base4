@@ -145,7 +145,6 @@ void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_lig
 				glBindTexture(pipeline.textures[i].target, pipeline.textures[i].texture);
 			}
 		}
-		std::cout << "in scene" << pipeline.textures[0].texture << std::endl;
 		glUniform1i(glGetUniformLocation(pipeline.program, "TEX"), 0);
 		glUniform1i(glGetUniformLocation(pipeline.program, "TEXT_BOOL"), 0);
 		GL_ERRORS();

@@ -18,6 +18,7 @@
 #include<fstream>
 #include <stdlib.h>
 #include <assert.h>
+#define PI 3.14159f
 
 GLuint test_meshes_for_lit_color_texture_program = 0;
 Load< MeshBuffer > test_meshes(LoadTagDefault, []() -> MeshBuffer const * {
@@ -37,8 +38,6 @@ void PlayMode::testPrint() {
 		for (size_t dio = 0; dio < dialogue0.size(); dio++) {
 			if (dio == thisCont.first) std::cout << " This is a contradiction: ";
 			std::cout << dio << ": ";
-			if (dialogue0[dio].second == 0) std::cout << "You: ";
-			else std::cout << "Barkeep: ";
 			std::cout << dialogue0[dio].first;
 			std::cout << std::endl;
 		}
@@ -46,8 +45,6 @@ void PlayMode::testPrint() {
 		for (size_t dio = 0; dio < dialogue1.size(); dio++) {
 			if (dio == thisCont.second) std::cout << " This is a contradiction: ";
 			std::cout << dio << ": ";
-			if (dialogue1[dio].second == 0) std::cout << "You: ";
-			else std::cout << "Bob: ";
 			std::cout << dialogue1[dio].first;
 			std::cout << std::endl;
 		}
@@ -151,8 +148,10 @@ unsigned int PlayMode::getTexture(unsigned int codepoint, bool* success) {
 }
 
 void PlayMode::createBuf(std::string text) {
+	//https://github.com/harfbuzz/harfbuzz-tutorial/blob/master/hello-harfbuzz-freetype.c was
+	//references for this code
 	hb_buffer = hb_buffer_create();
-	hb_buffer_add_utf8(hb_buffer, text.c_str(), 1, 0, 1);
+	hb_buffer_add_utf8(hb_buffer, text.c_str(),(int) text.length(), 0, -1);
 	hb_buffer_guess_segment_properties(hb_buffer); 
 	assert(hb_buffer != NULL);
 
@@ -161,18 +160,19 @@ void PlayMode::createBuf(std::string text) {
 	hb_shape(hb_font, hb_buffer, NULL, 0);
 
 	/* Get glyph information and positions out of the buffer. */
-	unsigned int len = hb_buffer_get_length(hb_buffer);
+	len = hb_buffer_get_length(hb_buffer);
 	hb_glyph_info_t* info = hb_buffer_get_glyph_infos(hb_buffer, NULL);
 	hb_glyph_position_t* pos = hb_buffer_get_glyph_positions(hb_buffer, NULL);  
 
 
 	//Load buffer into glyph vector
-	curLine = std::vector<Glyph>(len);
-	for (size_t c = 0; c < len; c++) {
+	curLine = std::vector<Glyph>(len - 1);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	for (size_t c = 0; c < len - 1; c++) {
 		Glyph newGlyph;
 		curLine.push_back(newGlyph);
 		bool success = false;
-		if (FT_Load_Char(ft_face, info[c].codepoint, FT_LOAD_RENDER)) {
+		if (FT_Load_Glyph (ft_face, info[c].codepoint, FT_LOAD_RENDER)) {
 			std::runtime_error("Glyph was unable to load");
 		}
 		unsigned int texId = getTexture(info[c].codepoint, &success);
@@ -207,8 +207,7 @@ void PlayMode::createBuf(std::string text) {
 			curLine[c].size = glm::ivec2(ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows);
 		}
 		assert(curLine[c].textureID != 0);
-		curLine[c].bearing.x = (unsigned int)(pos[c].x_offset / 64.f);
-		curLine[c].bearing.y = (unsigned int)(pos[c].y_offset / 64.f);
+		curLine[c].bearing = glm::ivec2(ft_face->glyph->bitmap_left, ft_face->glyph->bitmap_top);
 		curLine[c].advance = (unsigned int)(pos[c].x_advance / 64.f);
 	}
 }
@@ -253,15 +252,9 @@ PlayMode::PlayMode() : scene(*test_scene) {
 	hb_font = hb_ft_font_create(ft_face, NULL);
 	foundGlyph = std::vector<TexInfo>();
 
-	loadDialogue("test.txt");
-	//testPrint();
+	loadDialogue("contents.txt");
 	for (auto &transform : scene.transforms) {
-		//if (transform.name == "Cube") cube = &transform;
 	}
-	//if (cube == nullptr) throw std::runtime_error("Cube not found.");
-
-
-	//cube_rotation = cube->rotation;
 
 	//get pointer to camera for convenience:
 	if (scene.cameras.size() != 1) throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
@@ -271,12 +264,12 @@ PlayMode::PlayMode() : scene(*test_scene) {
 	// (note: position will be over-ridden in update())
 	cube_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_cube_position(), 10.0f);
 
-	currentText = std::string("a");
+	currentText = std::string("a"); //Will be quickly changed as a chapter is loaded in
 	gameState.chapter = 0;
 	gameState.char0 = 0;
 	gameState.char1 = 0;
 	gameState.currentTrack = 0;
-	gameState.mode = 1;
+	gameState.mode = 0; //Has prologue dialogue
 }
 
 PlayMode::~PlayMode() {
@@ -415,49 +408,51 @@ void PlayMode::updateDialogue() {
 }
 
 void PlayMode::update(float elapsed) {
+	if (colorStatus < 1.0f) colorStatus += elapsed;
+	else colorStatus = 1.0f;
 
 	auto selectChar = [this]() {
 		return !enterContradiction;
 	};
 
 	auto endGame = [this]() {
-		currentText = "The end";
+		currentText = "I should have known. That day would continue to haunt me as long as I lived. CHAPTER CLEAR.";
 	};
 
 	auto contradictionCheck = [this]() {
 		if (enterContradiction) {
+			colorStatus = 0.0f;
 			enterContradiction = false;
 			if (chapters[gameState.chapter].contradiction.first == gameState.char0 && chapters[gameState.chapter].contradiction.second == gameState.char1) {
+				textColor = glm::vec3(0.125f, 1.0f, 0.125f);
 				return true;
 			}
 			else {
-				std::cout << "Not a contradiction.\n";
+				textColor = glm::vec3(1.0f, 0.125f, 0.125f);
 				return false;
 			}
 		}
+		textColor = glm::vec3(0.1f);
 		return false;
 	};
-
-	if (gameState.mode == 0) { //mode 0 - auto, 1 - dialogue, 2 - contradiction
+	if (gameState.mode == 0) { //mode 0 - ending, 1 - dialogue, 2 - contradiction
 		if (continueDialogueLeft && (gameState.currentTrack == 0 && gameState.char0 == 0) || (gameState.currentTrack == 1 && gameState.char1 == 0)) continueDialogueLeft = false;
-		if(endLine && continueDialogueRight){
+		if (continueDialogueRight && (gameState.currentTrack == 0 && chapters[gameState.chapter].end.first == gameState.char0 ||
+			gameState.currentTrack == 1 && chapters[gameState.chapter].end.second == gameState.char1)) {
 			continueDialogueRight = false;
-			if (chapters.size() - 1 == gameState.chapter) endGame();   //This update needs to be changed
-			else {
+			if (chapters.size() - 1 == gameState.chapter && gameState.currentTrack == 1) {
+				endGame();
+				gameState.mode = 3;
+			}
+			else if (chapters.size() - 1 != gameState.chapter){
 				gameState.mode = 1;
 				gameState.chapter++;
 				gameState.char0 = 0;
 				gameState.char1 = 0;
 			}
 		}
-		else if(!endLine) {
-			if (continueDialogueRight && gameState.currentTrack == 0 && chapters[gameState.chapter].end.first == gameState.char0 ||
-				gameState.currentTrack == 1 && chapters[gameState.chapter].end.second == gameState.char1) {
-				continueDialogueRight = false;
-				endLine = true;
-			}
+		else 
 			updateDialogue();
-		}	
 	}
 	else if (gameState.mode == 1) {
 		if (selectChar()) {
@@ -472,37 +467,22 @@ void PlayMode::update(float elapsed) {
 			}
 		}
 	}
-	else {
-		if (continueDialogueLeft && (gameState.currentTrack == 0 && gameState.char0 == 0) || (gameState.currentTrack == 1 && gameState.char1 == 0)) continueDialogueLeft = false;
-		if (endLine && continueDialogueRight) {
+	else if(gameState.mode == 2) {
+		if (continueDialogueLeft &&( (gameState.currentTrack == 0 && gameState.char0 == 0) || (gameState.currentTrack == 1 && gameState.char1 == 0))) continueDialogueLeft = false;
+		if (continueDialogueRight && (gameState.currentTrack == 0 && chapters[gameState.chapter].end.first == gameState.char0 ||
+			gameState.currentTrack == 1 && chapters[gameState.chapter].end.second == gameState.char1)) {
 			continueDialogueRight = false;
-			endLine = false;
 			gameState.chapter++;
 			gameState.char0 = 0;
 			gameState.char1 = 0;
 			if (chapters.size() - 1 != gameState.chapter) gameState.mode = 1;
-			else gameState.mode = 0;
-		}
-		else{
-			if (continueDialogueRight && gameState.currentTrack == 0 && chapters[gameState.chapter].end.first == gameState.char0 ||
-				gameState.currentTrack == 1 && chapters[gameState.chapter].end.second == gameState.char1) {
-				continueDialogueRight = false;
-				endLine = true;
+			else {
+				gameState.mode = 0;
 			}
 		}
 		updateDialogue();
 	}
 
-//	if (gameState.currentTrack == 0) {
-//		if (currentSpeaker == 0) std::cout << "You: ";
-//		else std::cout << "Char 1: ";
-//	}
-//	else {
-//		if (currentSpeaker == 0) std::cout << "You: ";
-//		else std::cout << "Char 2: ";
-//	}
-
-//	std::cout << currentText << std::endl;
 	continueDialogueRight = false;
 
 	//move sound to follow leg tip position:
@@ -605,13 +585,14 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 
 	//Create glyphs
 	createBuf(currentText);
-	Glyph testGlyph = curLine[0];
 
 	//Set variables
 	float x = 0.0f;
 	float y = 0.0f;
-	float scale = 1.0f;
-	glm::vec3 color = glm::vec3(0.0f,1.0f,1.0f);
+	float scale = 0.015f;
+	glm::vec3 posOffset = gameState.currentTrack == 0 ? glm::vec3(-15.0f, 10.0f, 10.0f) : glm::vec3(5.0f, 10.0f, 10.0f);
+	glm::vec3 color = glm::vec3(0.3f,1.0f,1.0f)*colorStatus + (1.f-colorStatus)*textColor;
+	if(currentSpeaker == 1) color = glm::vec3(1.0f, 7.f, 0.1f) * colorStatus + (1.f - colorStatus) * textColor;
 
 	GLuint VAO, VBO;
 	glGenBuffers(1, &VBO);
@@ -623,6 +604,8 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 		glm::vec4 Color;
 		glm::vec2 TexCoord;
 	};
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
@@ -644,82 +627,101 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 	glBindVertexArray(0);
 	GL_ERRORS();
 
-
 	//Should be generealized to its own function later
 
+	for (size_t g = 0; g < len; g++) {
+		if (g % 50 == 49) {
+				x = 0;
+				posOffset += glm::vec3(0.f, 0.0f, -1.f);
+		}
+		Glyph glyph = curLine[g];
 
-	//Create plane mesh
-	float xPos = x + testGlyph.bearing.x * scale;
-	float yPos = y + (testGlyph.size.y - testGlyph.bearing.y) * scale;
-	float width = testGlyph.size.x * scale;
-	float height = testGlyph.size.y * scale;
-	std::cout << xPos << " x p " << yPos << " y p " << width << " w " << height << " h " << std::endl;
-	Vertex vertices[6];
+		//Create plane mesh
+		float xPos = x + glyph.bearing.x * scale;
+		float yPos = y - (glyph.size.y - glyph.bearing.y) * scale;
+		float width = glyph.size.x * scale;
+		float height = glyph.size.y * scale;
+		Vertex vertices[6];
 
-	vertices[0].Position = glm::vec4(xPos, yPos + height, -1.0f,1.0f);
-	vertices[1].Position = glm::vec4(xPos, yPos, -1.0f, 1.0f);
-	vertices[2].Position = glm::vec4(xPos + width, yPos, -1.0f, 1.0f);
-	vertices[3].Position = glm::vec4(xPos, yPos + height + height, -1.0f, 1.0f);
-	vertices[4].Position = glm::vec4(xPos + width, yPos, -1.0f, 1.0f);
-	vertices[5].Position = glm::vec4(xPos + width, yPos + height, -1.0f, 1.0f);
-	for (size_t c = 0; c < 6; c++) {
-		vertices[c].Normal = glm::vec3(0.0f, 0.0f, 1.0f);
-		vertices[c].Color = glm::vec4(0,1.0f,1.0f,1.0f);
+		vertices[0].Position = glm::vec4(xPos, yPos + height, 0.f, 1.0f);
+		vertices[1].Position = glm::vec4(xPos, yPos, 0.f, 1.0f);
+		vertices[2].Position = glm::vec4(xPos + width, yPos, 0.f, 1.0f);
+		vertices[3].Position = glm::vec4(xPos, yPos + height, 0.f, 1.0f);
+		vertices[4].Position = glm::vec4(xPos + width, yPos, 0.f, 1.0f);
+		vertices[5].Position = glm::vec4(xPos + width, yPos + height, 0.f, 1.0f);
+		//Im lazy
+		for (size_t c = 0; c < 6; c++) {
+			float swap = vertices[c].Position.y;
+			vertices[c].Position.y = vertices[c].Position.z;
+			vertices[c].Position.z = swap;
+			vertices[c].Position += glm::vec4(posOffset,1.0f);
+		}
+		for (size_t c = 0; c < 6; c++) {
+			vertices[c].Normal = glm::vec3(0.0f, 0.0f, 1.0f);
+			vertices[c].Color = glm::vec4(0, 1.0f, 1.0f, 1.0f);
+		}
+		vertices[0].TexCoord = glm::vec2(0.0f, 0.0f);
+		vertices[1].TexCoord = glm::vec2(0.0f, 1.0f);
+		vertices[2].TexCoord = glm::vec2(1.0f, 1.0f);
+		vertices[3].TexCoord = glm::vec2(0.0f, 0.0f);
+		vertices[4].TexCoord = glm::vec2(1.0f, 1.0f);
+		vertices[5].TexCoord = glm::vec2(1.0f, 0.0f);
+
+		glUseProgram(lit_color_texture_program->program);
+
+		Scene::Camera camera = scene.cameras.front();
+		assert(camera.transform);
+		Scene::Transform newTransform;
+
+		//newTransform.rotation = glm::normalize(newTransform.rotation * glm::angleAxis(2.f * PI / 4.f, glm::vec3(1.0f, 0.0f, 0.0f)) 
+		//	* glm::angleAxis(2.f * PI / 4.f, glm::vec3(0.0f, 1.0f, 0.0f)));
+		glm::mat4x3 object_to_world = newTransform.make_local_to_world();
+		glm::mat4 world_to_clip = camera.make_projection() * glm::mat4(camera.transform->make_world_to_local());
+		glm::mat4x3 world_to_light = glm::mat4x3(1.0f);
+		glm::mat4 object_to_clip = world_to_clip * glm::mat4(object_to_world);;
+		glUniformMatrix4fv(glGetUniformLocation(lit_color_texture_program->program, "OBJECT_TO_CLIP"), 1, GL_FALSE, glm::value_ptr(object_to_clip));
+		GL_ERRORS();
+		glm::mat4x3 object_to_light = world_to_light * glm::mat4(object_to_world);;
+		GL_ERRORS();
+		glUniformMatrix4x3fv(glGetUniformLocation(lit_color_texture_program->program, "OBJECT_TO_LIGHT"), 1, GL_FALSE, glm::value_ptr(object_to_light));
+		GL_ERRORS();
+		glm::mat3 normal_to_light = glm::inverse(glm::transpose(glm::mat3(object_to_light)));
+		GL_ERRORS();
+		glUniformMatrix3fv(glGetUniformLocation(lit_color_texture_program->program, "NORMAL_TO_LIGHT"), 1, GL_FALSE, glm::value_ptr(normal_to_light));
+		GL_ERRORS();
+
+		//upload vertices to vertex_buffer:
+
+
+		glUniform1i(glGetUniformLocation(lit_color_texture_program->program, "TEXT_BOOL"), 1);
+		GL_ERRORS();
+		glUniform3fv(glGetUniformLocation(lit_color_texture_program->program, "TEXT_COLOR"), 1, glm::value_ptr(color));
+		GL_ERRORS();
+
+		glActiveTexture(GL_TEXTURE0);
+		GL_ERRORS();
+		glBindTexture(GL_TEXTURE_2D, glyph.textureID);
+		GL_ERRORS();
+		if(g == 0) glUniform1i(glGetUniformLocation(lit_color_texture_program->program, "TEX"), 0);
+		GL_ERRORS();
+
+		glBindVertexArray(VAO);
+
+		glBindBuffer(GL_ARRAY_BUFFER, VBO); //set vertex_buffer as current
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); //upload vertices array
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		GL_ERRORS();
+
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		GL_ERRORS();
+
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glBindVertexArray(0);
+		glUseProgram(0);
+		GL_ERRORS();
+		x += (glyph.advance) * scale;
+
 	}
-	vertices[0].TexCoord = glm::vec2(0.0f, 0.0f);
-	vertices[1].TexCoord = glm::vec2(0.0f, 1.0f);
-	vertices[2].TexCoord = glm::vec2(1.0f, 1.0f);
-	vertices[3].TexCoord = glm::vec2(0.0f, 0.0f);
-	vertices[4].TexCoord = glm::vec2(1.0f, 1.0f);
-	vertices[5].TexCoord = glm::vec2(1.0f, 0.0f);
-
-
-	glUseProgram(lit_color_texture_program->program);
-
-	//Vars from scene
-	Scene::Camera camera = scene.cameras.front();
-	assert(camera.transform);
-	glm::mat4 world_to_clip = camera.make_projection() * glm::mat4(camera.transform->make_world_to_local());
-	glm::mat4x3 world_to_light = glm::mat4x3(1.0f);
-	glm::mat4 object_to_clip = world_to_clip;
-	glUniformMatrix4fv(glGetUniformLocation(lit_color_texture_program->program, "OBJECT_TO_CLIP"), 1, GL_FALSE, glm::value_ptr(object_to_clip));
-	GL_ERRORS();
-	glm::mat4x3 object_to_light = world_to_light;
-	GL_ERRORS();
-	glUniformMatrix4x3fv(glGetUniformLocation(lit_color_texture_program->program, "OBJECT_TO_LIGHT"), 1, GL_FALSE, glm::value_ptr(object_to_light));
-	GL_ERRORS();
-	glm::mat3 normal_to_light = glm::inverse(glm::transpose(glm::mat3(object_to_light)));
-	GL_ERRORS();
-	glUniformMatrix3fv(glGetUniformLocation(lit_color_texture_program->program, "NORMAL_TO_LIGHT"), 1, GL_FALSE, glm::value_ptr(normal_to_light));
-	GL_ERRORS();
-
-	//upload vertices to vertex_buffer:
-
-
-	glUniform1i(glGetUniformLocation(lit_color_texture_program->program, "TEXT_BOOL"), 1);
-	GL_ERRORS();
-	glUniform3fv(glGetUniformLocation(lit_color_texture_program->program, "TEXT_COLOR"), 1, glm::value_ptr(glm::vec3(1.0f)));
-	GL_ERRORS();
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, testGlyph.textureID);
-	glUniform1i(glGetUniformLocation(lit_color_texture_program->program, "TEX"), 0);
-	GL_ERRORS();
-
-	glBindVertexArray(VAO);
-
-	glBindBuffer(GL_ARRAY_BUFFER, VBO); //set vertex_buffer as current
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); //upload vertices array
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	GL_ERRORS();
-
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	GL_ERRORS();
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glBindVertexArray(0);
-	glUseProgram(0);
-	GL_ERRORS();
 
 }
 
