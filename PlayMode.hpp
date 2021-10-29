@@ -19,10 +19,10 @@
 //https://github.com/harfbuzz/harfbuzz-tutorial/blob/master/hello-harfbuzz-freetype.c
 
 struct Glyph {
-	unsigned int textureID;  
-	glm::ivec2   size;       // (width, height) of glyph
-	glm::ivec2   bearing;    // baseline to (left,top) offset
-	unsigned int advance;    // Offset to advance to next glyph
+	unsigned int textureID = 0;  
+	glm::uvec2   size = glm::uvec2(0,0);       // (width, height) of glyph
+	glm::ivec2   bearing = glm::ivec2(0,0);    // baseline to (left,top) offset
+	unsigned int advance = 0;    // Offset to advance to next glyph
 }; //Glyphs will be mapped to the above after being created in the face
 //From their, the buffer of glyphs will be turne dinto a buffer of above references
 //Textuere will be generated one at a time
@@ -31,8 +31,8 @@ struct Glyph {
 //the above data type
 
 struct TexInfo {
-	unsigned int texture;
-	unsigned int codepoint;
+	unsigned int texture = 0;
+	unsigned int codepoint = 0; //Should turn into map
 };
 
 struct PlayMode : Mode {
@@ -55,10 +55,6 @@ struct PlayMode : Mode {
 	//local copy of the game scene (so code can change it during gameplay):
 	Scene scene;
 
-	//hexapod leg to wobble:
-	Scene::Transform *cube = nullptr;
-	glm::quat cube_rotation;
-
 	glm::vec3 get_cube_position();
 
 	//music coming from the tip of the leg (as a demonstration):
@@ -70,26 +66,24 @@ struct PlayMode : Mode {
 	//Text info
 	std::string currentText;
 	int currentSpeaker = 0;
-	FT_Face ft_face;
-	hb_font_t* hb_font;
+	FT_Face ft_face = nullptr;
+	hb_font_t* hb_font = nullptr;
 	std::vector<Glyph> curLine;
 	std::vector<TexInfo> foundGlyph;
 	unsigned int getTexture(unsigned int codepoint,bool *success);
 	void createBuf(std::string text);
 	void setFont(std::string fontfile);
-	FT_Library ft_library;
-	FT_Error ft_error;
-	hb_buffer_t* hb_buffer;
-	unsigned int len = 0;
-
-	//To do
+	FT_Library ft_library = nullptr;
+	hb_buffer_t* hb_buffer = nullptr;;
 	void displayText();
 	void getCurrentText();
 
 	//Game State
 	struct GameState {
-		unsigned int currentTrack, char0, char1, chapter, mode = 0;
-		//mode 0 - auto, 1 - dialogue, 2 - contradiction
+		enum Mode : unsigned int { AUTO, DIALOGUE, CONTRADICTION, ENDING };
+		unsigned int currentTrack = 0, char0 = 0, char1 = 0, chapter = 0;
+		Mode mode = AUTO;
+		//spell check
 	};
 	GameState gameState;
 	bool continueDialogueRight = false;
@@ -101,8 +95,8 @@ struct PlayMode : Mode {
 
 	//Dialogue
 	struct Chapter {
-		std::pair<unsigned int, unsigned int> contradiction;
-		std::pair<unsigned int, unsigned int> end;
+		std::pair<unsigned int, unsigned int> contradiction = std::make_pair(0,0);
+		std::pair<unsigned int, unsigned int> end = std::make_pair(0,0);
 		std::vector<std::pair<std::string,uint8_t>> dialogue0;
 		std::vector<std::pair<std::string,uint8_t>> dialogue1;
 	};

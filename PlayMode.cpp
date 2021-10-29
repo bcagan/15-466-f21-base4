@@ -18,6 +18,8 @@
 #include<fstream>
 #include <stdlib.h>
 #include <assert.h>
+#include <array>
+#include <algorithm>
 #define PI 3.14159f
 
 GLuint test_meshes_for_lit_color_texture_program = 0;
@@ -160,15 +162,16 @@ void PlayMode::createBuf(std::string text) {
 	hb_shape(hb_font, hb_buffer, NULL, 0);
 
 	/* Get glyph information and positions out of the buffer. */
-	len = hb_buffer_get_length(hb_buffer);
+	size_t len = hb_buffer_get_length(hb_buffer);
 	hb_glyph_info_t* info = hb_buffer_get_glyph_infos(hb_buffer, NULL);
 	hb_glyph_position_t* pos = hb_buffer_get_glyph_positions(hb_buffer, NULL);  
 
 
 	//Load buffer into glyph vector
-	curLine = std::vector<Glyph>(len - 1);
+	curLine.clear();
+	curLine.reserve(len);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	for (size_t c = 0; c < len - 1; c++) {
+	for (size_t c = 0; c < len ; c++) {
 		Glyph newGlyph;
 		curLine.push_back(newGlyph);
 		bool success = false;
@@ -237,6 +240,7 @@ PlayMode::PlayMode() : scene(*test_scene) {
 
 	hb_font = NULL;
 	hb_buffer = NULL;
+	FT_Error ft_error;
 
 	//Set up font
 	std::string fontString = std::string("OpenSans-Regular.ttf");
@@ -252,7 +256,7 @@ PlayMode::PlayMode() : scene(*test_scene) {
 	hb_font = hb_ft_font_create(ft_face, NULL);
 	foundGlyph = std::vector<TexInfo>();
 
-	loadDialogue("contents.txt");
+	loadDialogue("Contents.txt");
 	for (auto &transform : scene.transforms) {
 	}
 
@@ -269,7 +273,7 @@ PlayMode::PlayMode() : scene(*test_scene) {
 	gameState.char0 = 0;
 	gameState.char1 = 0;
 	gameState.currentTrack = 0;
-	gameState.mode = 0; //Has prologue dialogue
+	gameState.mode = GameState::AUTO;
 }
 
 PlayMode::~PlayMode() {
@@ -435,17 +439,17 @@ void PlayMode::update(float elapsed) {
 		textColor = glm::vec3(0.1f);
 		return false;
 	};
-	if (gameState.mode == 0) { //mode 0 - ending, 1 - dialogue, 2 - contradiction
+	if (gameState.mode == GameState::AUTO) { //mode 0 - ending, 1 - dialogue, 2 - contradiction
 		if (continueDialogueLeft && (gameState.currentTrack == 0 && gameState.char0 == 0) || (gameState.currentTrack == 1 && gameState.char1 == 0)) continueDialogueLeft = false;
 		if (continueDialogueRight && (gameState.currentTrack == 0 && chapters[gameState.chapter].end.first == gameState.char0 ||
 			gameState.currentTrack == 1 && chapters[gameState.chapter].end.second == gameState.char1)) {
 			continueDialogueRight = false;
 			if (chapters.size() - 1 == gameState.chapter && gameState.currentTrack == 1) {
 				endGame();
-				gameState.mode = 3;
+				gameState.mode = GameState::ENDING;
 			}
 			else if (chapters.size() - 1 != gameState.chapter){
-				gameState.mode = 1;
+				gameState.mode = GameState::DIALOGUE;
 				gameState.chapter++;
 				gameState.char0 = 0;
 				gameState.char1 = 0;
@@ -454,20 +458,20 @@ void PlayMode::update(float elapsed) {
 		else 
 			updateDialogue();
 	}
-	else if (gameState.mode == 1) {
+	else if (gameState.mode == GameState::DIALOGUE) {
 		if (selectChar()) {
 			updateDialogue();
 		}
 		else {
 			if (contradictionCheck()) {
-				gameState.mode = 2;
+				gameState.mode = GameState::CONTRADICTION;
 				gameState.chapter++;
 				gameState.char0 = 0;
 				gameState.char1 = 0;
 			}
 		}
 	}
-	else if(gameState.mode == 2) {
+	else if(gameState.mode == GameState::CONTRADICTION) {
 		if (continueDialogueLeft &&( (gameState.currentTrack == 0 && gameState.char0 == 0) || (gameState.currentTrack == 1 && gameState.char1 == 0))) continueDialogueLeft = false;
 		if (continueDialogueRight && (gameState.currentTrack == 0 && chapters[gameState.chapter].end.first == gameState.char0 ||
 			gameState.currentTrack == 1 && chapters[gameState.chapter].end.second == gameState.char1)) {
@@ -475,9 +479,9 @@ void PlayMode::update(float elapsed) {
 			gameState.chapter++;
 			gameState.char0 = 0;
 			gameState.char1 = 0;
-			if (chapters.size() - 1 != gameState.chapter) gameState.mode = 1;
+			if (chapters.size() - 1 != gameState.chapter) gameState.mode = GameState::DIALOGUE;
 			else {
-				gameState.mode = 0;
+				gameState.mode = GameState::AUTO;
 			}
 		}
 		updateDialogue();
@@ -629,7 +633,8 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 
 	//Should be generealized to its own function later
 
-	for (size_t g = 0; g < len; g++) {
+	assert(!curLine.empty());
+	for (size_t g = 0; g < curLine.size(); g++) {
 		if (g % 50 == 49) {
 				x = 0;
 				posOffset += glm::vec3(0.f, 0.0f, -1.f);
@@ -641,7 +646,7 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 		float yPos = y - (glyph.size.y - glyph.bearing.y) * scale;
 		float width = glyph.size.x * scale;
 		float height = glyph.size.y * scale;
-		Vertex vertices[6];
+		std::array<Vertex,6> vertices;
 
 		vertices[0].Position = glm::vec4(xPos, yPos + height, 0.f, 1.0f);
 		vertices[1].Position = glm::vec4(xPos, yPos, 0.f, 1.0f);
@@ -650,12 +655,11 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 		vertices[4].Position = glm::vec4(xPos + width, yPos, 0.f, 1.0f);
 		vertices[5].Position = glm::vec4(xPos + width, yPos + height, 0.f, 1.0f);
 		//Im lazy
-		for (size_t c = 0; c < 6; c++) {
-			float swap = vertices[c].Position.y;
-			vertices[c].Position.y = vertices[c].Position.z;
-			vertices[c].Position.z = swap;
+		for (size_t c = 0; c < vertices.size(); c++) {
+			std::swap(vertices[c].Position.z, vertices[c].Position.y);
 			vertices[c].Position += glm::vec4(posOffset,1.0f);
-		}
+			std::cout << vertices[c].Position.x << " " << vertices[c].Position.y << " " << vertices[c].Position.z << std::endl;
+		} 
 		for (size_t c = 0; c < 6; c++) {
 			vertices[c].Normal = glm::vec3(0.0f, 0.0f, 1.0f);
 			vertices[c].Color = glm::vec4(0, 1.0f, 1.0f, 1.0f);
@@ -708,20 +712,17 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 		glBindVertexArray(VAO);
 
 		glBindBuffer(GL_ARRAY_BUFFER, VBO); //set vertex_buffer as current
-		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); //upload vertices array
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		GL_ERRORS();
+		glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size(), vertices.data()); //upload vertices array
 
 		glDrawArrays(GL_TRIANGLES, 0, 6);
-		GL_ERRORS();
-
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glBindVertexArray(0);
-		glUseProgram(0);
-		GL_ERRORS();
 		x += (glyph.advance) * scale;
 
 	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindVertexArray(0);
+	glUseProgram(0);
 
 }
 
