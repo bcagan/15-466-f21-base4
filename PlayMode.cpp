@@ -149,72 +149,6 @@ unsigned int PlayMode::getTexture(unsigned int codepoint, bool* success) {
 	return 0;
 }
 
-void PlayMode::createBuf(std::string text) {
-	//https://github.com/harfbuzz/harfbuzz-tutorial/blob/master/hello-harfbuzz-freetype.c was
-	//references for this code
-	hb_buffer = hb_buffer_create();
-	hb_buffer_add_utf8(hb_buffer, text.c_str(),(int) text.length(), 0, -1);
-	hb_buffer_guess_segment_properties(hb_buffer); 
-	assert(hb_buffer != NULL);
-
-	/* Shape it! */
-	//Issue is either bg_font or hg_buffer, likely hb_font, likely not hb_buffer based an above
-	hb_shape(hb_font, hb_buffer, NULL, 0);
-
-	/* Get glyph information and positions out of the buffer. */
-	size_t len = hb_buffer_get_length(hb_buffer);
-	hb_glyph_info_t* info = hb_buffer_get_glyph_infos(hb_buffer, NULL);
-	hb_glyph_position_t* pos = hb_buffer_get_glyph_positions(hb_buffer, NULL);  
-
-
-	//Load buffer into glyph vector
-	curLine.clear();
-	curLine.reserve(len);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	for (size_t c = 0; c < len ; c++) {
-		Glyph newGlyph;
-		curLine.push_back(newGlyph);
-		bool success = false;
-		if (FT_Load_Glyph (ft_face, info[c].codepoint, FT_LOAD_RENDER)) {
-			std::runtime_error("Glyph was unable to load");
-		}
-		unsigned int texId = getTexture(info[c].codepoint, &success);
-		if (!success) {
-			unsigned int texture;
-			glGenTextures(1, &texture);
-			glBindTexture(GL_TEXTURE_2D, texture);
-			glTexImage2D(
-				GL_TEXTURE_2D,
-				0,
-				GL_RED,
-				ft_face->glyph->bitmap.width,
-				ft_face->glyph->bitmap.rows,
-				0,
-				GL_RED,
-				GL_UNSIGNED_BYTE,
-				ft_face->glyph->bitmap.buffer
-			);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			curLine[c].textureID = texture;
-			curLine[c].size = glm::ivec2(ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows);
-			TexInfo newInfo;
-			newInfo.codepoint = info[c].codepoint;
-			newInfo.texture = texture;
-			foundGlyph.push_back(newInfo);
-		}
-		else {
-			curLine[c].textureID = texId;
-			curLine[c].size = glm::ivec2(ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows);
-		}
-		assert(curLine[c].textureID != 0);
-		curLine[c].bearing = glm::ivec2(ft_face->glyph->bitmap_left, ft_face->glyph->bitmap_top);
-		curLine[c].advance = (unsigned int)(pos[c].x_advance / 64.f);
-	}
-}
-
 Load< Scene > test_scene(LoadTagDefault, []() -> Scene const * {
 	return new Scene(data_path("test.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
 		Mesh const &mesh = test_meshes->lookup(mesh_name);
@@ -238,6 +172,7 @@ Load< Sound::Sample > dusty_floor_sample(LoadTagDefault, []() -> Sound::Sample c
 
 PlayMode::PlayMode() : scene(*test_scene) {
 
+
 	hb_font = NULL;
 	hb_buffer = NULL;
 	FT_Error ft_error;
@@ -252,13 +187,15 @@ PlayMode::PlayMode() : scene(*test_scene) {
 	if ((ft_error = FT_Set_Char_Size(ft_face, FONT_SIZE * 64, FONT_SIZE * 64, 0, 0)))
 		abort();
 
+
 	/* Create hb-ft font. */
 	hb_font = hb_ft_font_create(ft_face, NULL);
 	foundGlyph = std::vector<TexInfo>();
 
 	loadDialogue("Contents.txt");
-	for (auto &transform : scene.transforms) {
-	}
+
+	/*for (auto& transform : scene.transforms) {
+	}*/
 
 	//get pointer to camera for convenience:
 	if (scene.cameras.size() != 1) throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
@@ -414,6 +351,7 @@ void PlayMode::updateDialogue() {
 void PlayMode::update(float elapsed) {
 	if (colorStatus < 1.0f) colorStatus += elapsed;
 	else colorStatus = 1.0f;
+	
 
 	auto selectChar = [this]() {
 		return !enterContradiction;
@@ -582,13 +520,80 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 }
 
 
+void PlayMode::createBuf(std::string text) {
+	//https://github.com/harfbuzz/harfbuzz-tutorial/blob/master/hello-harfbuzz-freetype.c was
+	//references for this code
+	hb_buffer = hb_buffer_create();
+	hb_buffer_add_utf8(hb_buffer, text.c_str(), (int)text.length(), 0, -1);
+	hb_buffer_guess_segment_properties(hb_buffer);
+	assert(hb_buffer != NULL);
+
+	/* Shape it! */
+	hb_shape(hb_font, hb_buffer, NULL, 0);
+
+	/* Get glyph information and positions out of the buffer. */
+	size_t len = hb_buffer_get_length(hb_buffer) - 1; //Note that the text is being fed a carrige return, from notepad
+	//Which is causing a filler character to appear. Decrementing the length skips this
+	hb_glyph_info_t* info = hb_buffer_get_glyph_infos(hb_buffer, NULL);
+	hb_glyph_position_t* pos = hb_buffer_get_glyph_positions(hb_buffer, NULL);
+
+
+	//Load buffer into glyph vector
+	curLine.clear();
+	curLine.reserve(len);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	for (size_t c = 0; c < len; c++) {
+		Glyph newGlyph;
+		curLine.push_back(newGlyph);
+		bool success = false;
+		if (FT_Load_Glyph(ft_face, info[c].codepoint, FT_LOAD_RENDER)) {
+			std::runtime_error("Glyph was unable to load");
+		}
+		unsigned int texId = getTexture(info[c].codepoint, &success);
+		if (!success) {
+			unsigned int texture;
+			glGenTextures(1, &texture);
+			glBindTexture(GL_TEXTURE_2D, texture);
+			glTexImage2D(
+				GL_TEXTURE_2D,
+				0,
+				GL_RED,
+				ft_face->glyph->bitmap.width,
+				ft_face->glyph->bitmap.rows,
+				0,
+				GL_RED,
+				GL_UNSIGNED_BYTE,
+				ft_face->glyph->bitmap.buffer
+			);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			curLine[c].textureID = texture;
+			curLine[c].size = glm::ivec2(ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows);
+			TexInfo newInfo;
+			newInfo.codepoint = info[c].codepoint;
+			newInfo.texture = texture;
+			foundGlyph.push_back(newInfo);
+		}
+		else {
+			curLine[c].textureID = texId;
+			curLine[c].size = glm::ivec2(ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows);
+		}
+		assert(curLine[c].textureID != 0);
+		curLine[c].bearing = glm::ivec2(ft_face->glyph->bitmap_left, ft_face->glyph->bitmap_top);
+		curLine[c].advance = (unsigned int)(pos[c].x_advance / 64.f);
+	}
+}
+
+
+
 void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/Text-Rendering
-	
-	
 	
 
 	//Create glyphs
 	createBuf(currentText);
+
 
 	//Set variables
 	float x = 0.0f;
@@ -612,23 +617,6 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 13, NULL, GL_DYNAMIC_DRAW);
-	GLint location = glGetAttribLocation(lit_color_texture_program->program, "Position");
-	glEnableVertexAttribArray(location);
-	glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, 13 * sizeof(float), (void*)0);
-	location = glGetAttribLocation(lit_color_texture_program->program, "Normal");
-	glEnableVertexAttribArray(location);
-	glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE, 13 * sizeof(float), (void*)(4 * sizeof(float)));
-	location = glGetAttribLocation(lit_color_texture_program->program, "Color");
-	glEnableVertexAttribArray(location);
-	glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, 13 * sizeof(float), (void*)(7 * sizeof(float)));
-	location = glGetAttribLocation(lit_color_texture_program->program, "TexCoord");
-	glEnableVertexAttribArray(location);
-	glVertexAttribPointer(location, 2, GL_FLOAT, GL_FALSE, 13 * sizeof(float), (void*)(11 * sizeof(float)));
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
 	GL_ERRORS();
 
 	//Should be generealized to its own function later
@@ -658,8 +646,8 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 		for (size_t c = 0; c < vertices.size(); c++) {
 			std::swap(vertices[c].Position.z, vertices[c].Position.y);
 			vertices[c].Position += glm::vec4(posOffset,1.0f);
-			std::cout << vertices[c].Position.x << " " << vertices[c].Position.y << " " << vertices[c].Position.z << std::endl;
 		} 
+
 		for (size_t c = 0; c < 6; c++) {
 			vertices[c].Normal = glm::vec3(0.0f, 0.0f, 1.0f);
 			vertices[c].Color = glm::vec4(0, 1.0f, 1.0f, 1.0f);
@@ -694,9 +682,8 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 		glUniformMatrix3fv(glGetUniformLocation(lit_color_texture_program->program, "NORMAL_TO_LIGHT"), 1, GL_FALSE, glm::value_ptr(normal_to_light));
 		GL_ERRORS();
 
+
 		//upload vertices to vertex_buffer:
-
-
 		glUniform1i(glGetUniformLocation(lit_color_texture_program->program, "TEXT_BOOL"), 1);
 		GL_ERRORS();
 		glUniform3fv(glGetUniformLocation(lit_color_texture_program->program, "TEXT_COLOR"), 1, glm::value_ptr(color));
@@ -710,9 +697,22 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 		GL_ERRORS();
 
 		glBindVertexArray(VAO);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(Vertex), vertices.data(), GL_DYNAMIC_DRAW);
+		GLint location = glGetAttribLocation(lit_color_texture_program->program, "Position");
+		glEnableVertexAttribArray(location);
+		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+		location = glGetAttribLocation(lit_color_texture_program->program, "Normal");
+		glEnableVertexAttribArray(location);
+		glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(4 * sizeof(float)));
+		location = glGetAttribLocation(lit_color_texture_program->program, "Color");
+		glEnableVertexAttribArray(location);
+		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(7 * sizeof(float)));
+		location = glGetAttribLocation(lit_color_texture_program->program, "TexCoord");
+		glEnableVertexAttribArray(location);
+		glVertexAttribPointer(location, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(11 * sizeof(float)));
 
-		glBindBuffer(GL_ARRAY_BUFFER, VBO); //set vertex_buffer as current
-		glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size(), vertices.data()); //upload vertices array
+		//		glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size(), vertices.data()); //upload vertices array
 
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		x += (glyph.advance) * scale;

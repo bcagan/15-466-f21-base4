@@ -1,8 +1,8 @@
 CHAPTER
 0 0
-START 0 It had been 5 long days since I had proven my innocence. 
-1 0 But, it seemed it wouldn't be that easy to get back to a normal 
-2 0 life. It was around 8AM, I had been walking home from an old aquaintence's. 
+START 0 It had been 5 long days since I had proven my innocence.
+1 0 But, it seemed it wouldn't be that easy to get back to a normal
+2 0 life. It was around 8AM, I had been walking home from an old aquaintence's.
 3 0 When I learned that I still hadn't freed myself from that day
 END 1 CHAPTER START
 START 0 It had been 5 long days since I had proven my innocence
