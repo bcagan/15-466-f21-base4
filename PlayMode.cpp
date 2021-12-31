@@ -617,6 +617,21 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(Vertex), NULL, GL_DYNAMIC_DRAW);
+	GLint location = glGetAttribLocation(lit_color_texture_program->program, "Position");
+	glEnableVertexAttribArray(location);
+	glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+	location = glGetAttribLocation(lit_color_texture_program->program, "Normal");
+	glEnableVertexAttribArray(location);
+	glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(4 * sizeof(float)));
+	location = glGetAttribLocation(lit_color_texture_program->program, "Color");
+	glEnableVertexAttribArray(location);
+	glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(7 * sizeof(float)));
+	location = glGetAttribLocation(lit_color_texture_program->program, "TexCoord");
+	glEnableVertexAttribArray(location);
+	glVertexAttribPointer(location, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(11 * sizeof(float)));
 	GL_ERRORS();
 
 	//Should be generealized to its own function later
@@ -698,21 +713,7 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 
 		glBindVertexArray(VAO);
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
-		glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(Vertex), vertices.data(), GL_DYNAMIC_DRAW);
-		GLint location = glGetAttribLocation(lit_color_texture_program->program, "Position");
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-		location = glGetAttribLocation(lit_color_texture_program->program, "Normal");
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(4 * sizeof(float)));
-		location = glGetAttribLocation(lit_color_texture_program->program, "Color");
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(7 * sizeof(float)));
-		location = glGetAttribLocation(lit_color_texture_program->program, "TexCoord");
-		glEnableVertexAttribArray(location);
-		glVertexAttribPointer(location, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(11 * sizeof(float)));
-
-		//		glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size(), vertices.data()); //upload vertices array
+		glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size()*sizeof(Vertex), vertices.data()); //upload vertices array
 
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		x += (glyph.advance) * scale;
