@@ -66,19 +66,17 @@ struct PlayMode : Mode {
 	//Text info
 	std::string currentText;
 	int currentSpeaker = 0;
-	FT_Face ft_face;
-	hb_font_t* hb_font;
+	FT_Face ft_face = nullptr;
+	hb_font_t* hb_font = nullptr;
 	std::vector<Glyph> curLine;
 	std::vector<TexInfo> foundGlyph;
 	unsigned int getTexture(unsigned int codepoint,bool *success);
 	void createBuf(std::string text);
 	void setFont(std::string fontfile);
-	FT_Library ft_library;
-	hb_buffer_t* hb_buffer;
+	FT_Library ft_library = nullptr;
+	hb_buffer_t* hb_buffer = nullptr;
 	void displayText();
 	void getCurrentText();
-
-
 
 	//Game State
 	struct GameState {
