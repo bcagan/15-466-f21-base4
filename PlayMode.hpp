@@ -75,7 +75,7 @@ struct PlayMode : Mode {
 	void setFont(std::string fontfile);
 	FT_Library ft_library = nullptr;
 	hb_buffer_t* hb_buffer = nullptr;
-	void displayText();
+	void displayText(std::string inText, size_t level);
 	void getCurrentText();
 
 	//Game State

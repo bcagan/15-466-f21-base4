@@ -488,7 +488,45 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 
 	scene.draw(*camera);
-	displayText();
+
+	std::string currentSubText = currentText;
+	size_t startInd = 0;
+	size_t level = 0;
+	size_t usableSize = currentText.size() - 1; // Note that the text is being fed a carrige return, from notepad
+		//Which is causing a filler character to appear. Decrementing the length skips this
+	bool needHyp = false;
+	//Code to find good spot for new line
+	while (startInd < usableSize) {
+		size_t strSize = 0;
+		while (strSize < usableSize - startInd && strSize < 49) {
+			strSize++;
+		}
+		bool foundSpace = false;
+		size_t numCheck = 0;
+		while (!foundSpace && strSize < usableSize - startInd - 1 && numCheck < 10) {
+			if (currentText[startInd + strSize + 1] == ' ') { foundSpace = true; strSize++; }
+			strSize++;
+			numCheck++;
+		}
+		if (strSize == usableSize - startInd - 1) {
+			strSize++; //If one character left, include
+		}
+		if (strSize >= usableSize - startInd) {
+			foundSpace = true;
+		}
+		currentSubText = currentText.substr(startInd, strSize);
+		if (needHyp) {
+			currentSubText = std::string("-").append(currentSubText);
+			needHyp = false;
+		}
+		if (!foundSpace) {
+			needHyp = true;
+			currentSubText = currentSubText.append("-");
+		}
+		displayText(currentSubText,level);
+		startInd += strSize;
+		level++;
+	}
 
 
 
@@ -532,8 +570,7 @@ void PlayMode::createBuf(std::string text) {
 	hb_shape(hb_font, hb_buffer, NULL, 0);
 
 	/* Get glyph information and positions out of the buffer. */
-	size_t len = hb_buffer_get_length(hb_buffer) - 1; //Note that the text is being fed a carrige return, from notepad
-	//Which is causing a filler character to appear. Decrementing the length skips this
+	size_t len = hb_buffer_get_length(hb_buffer);
 	hb_glyph_info_t* info = hb_buffer_get_glyph_infos(hb_buffer, NULL);
 	hb_glyph_position_t* pos = hb_buffer_get_glyph_positions(hb_buffer, NULL);
 
@@ -588,11 +625,12 @@ void PlayMode::createBuf(std::string text) {
 
 
 
-void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/Text-Rendering
+void PlayMode::displayText(std::string inText,size_t level) { //Also uses https://learnopengl.com/In-Practice/Text-Rendering
 	
+	std::cout << "level " << level << " text size " << inText.size() << std::endl;
 
 	//Create glyphs
-	createBuf(currentText);
+	createBuf(inText);
 
 
 	//Set variables
@@ -637,11 +675,8 @@ void PlayMode::displayText() { //Also uses https://learnopengl.com/In-Practice/T
 	//Should be generealized to its own function later
 
 	assert(!curLine.empty());
+	posOffset += glm::vec3(0.f, 0.0f, -1.f*(float) level);
 	for (size_t g = 0; g < curLine.size(); g++) {
-		if (g % 50 == 49) {
-				x = 0;
-				posOffset += glm::vec3(0.f, 0.0f, -1.f);
-		}
 		Glyph glyph = curLine[g];
 
 		//Create plane mesh
