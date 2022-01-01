@@ -178,7 +178,7 @@ PlayMode::PlayMode() : scene(*test_scene) {
 	FT_Error ft_error;
 
 	//Set up font
-	std::string fontString = std::string("OpenSans-Regular.ttf");
+	std::string fontString = std::string("BalooDa2-Medium.ttf");
 
 	if ((ft_error = FT_Init_FreeType(&ft_library)))
 		abort();
@@ -516,12 +516,15 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		}
 		currentSubText = currentText.substr(startInd, strSize);
 		if (needHyp) {
-			currentSubText = std::string("-").append(currentSubText);
+			currentSubText = std::string("...").append(currentSubText); //Hyphens (-) do not appear, I believe this is a harfbuzz issue, but I
+			//Cannot figure out why due to documentation. I felt it was easier for now to just replace it with ...
+			//If I had more time to dedicate to this, and still couldnt figure it out from the documentation, I'd create my own texture, and, identify the -
+			//glyph. From there, Id just replace that glyph with my own - texture
 			needHyp = false;
 		}
 		if (!foundSpace) {
 			needHyp = true;
-			currentSubText = currentSubText.append("-");
+			currentSubText = currentSubText.append("...");
 		}
 		displayText(currentSubText,level);
 		startInd += strSize;
@@ -626,8 +629,6 @@ void PlayMode::createBuf(std::string text) {
 
 
 void PlayMode::displayText(std::string inText,size_t level) { //Also uses https://learnopengl.com/In-Practice/Text-Rendering
-	
-	std::cout << "level " << level << " text size " << inText.size() << std::endl;
 
 	//Create glyphs
 	createBuf(inText);
